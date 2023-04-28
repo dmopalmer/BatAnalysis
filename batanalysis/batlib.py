@@ -10,11 +10,13 @@ import numpy as np
 import shutil
 import matplotlib.pyplot as plt
 import glob
+import fnmatch
 import os
 import sys
 import warnings
 from pathlib import Path
 import requests
+from bs4 import BeautifulSoup
 from astroquery.heasarc import Heasarc
 from copy import copy
 import swifttools.swift_too as swtoo
@@ -30,12 +32,6 @@ try:
 except ModuleNotFoundError as err:
     # Error handling
     print(err)
-
-#try:
-#    import xspec as xsp
-#except ModuleNotFoundError as err:
-    # Error handling
-#    print(err)
 
 import swiftbat.swutil as sbu
 import swiftbat
@@ -215,7 +211,7 @@ def combine_survey_lc(survey_obsid_list, output_dir=None, clean_dir=True):
     if type(survey_obsid_list) is not list:
         survey_obsid_list = [survey_obsid_list]
 
-    #get the main directory where we shoudl create the total_lc directory
+    #get the main directory where we should create the total_lc directory
     if output_dir is None:
         output_dir = survey_obsid_list[0].result_dir.parent.joinpath("total_lc")  #os.path.join(main_dir, "total_lc")
     else:
@@ -1060,6 +1056,76 @@ def download_swiftdata(table,  reload=False,
     return results
 
 
+
+def download_file(url, filename, ifsizechanged=True):
+    filename = Path(filename)
+    checksize = ifsizechanged and filename.is_file()
+    with requests.get(url, stream=True) as get:
+        get.raise_for_status()
+        header = get.raw.getheaders()
+        content_length = int(header['Content-Length'])
+        if checksize and content_length == filename.stat().st_size:
+            return
+        else:
+            filename.open("wb").write(get.raw.read(decode_content=False))
+            # blocksize = max(content_length, 1024*1024)
+            # file = filename.open("wb")
+            # for content in get.raw.stream(blocksize, decode_content=False):
+            #     file.write(content)
+
+            
+
+
+def download_TTE(trignum=None, trigrange=None, time=None, rows=None, savedir=None):
+    """Download BAT Time Tagged Events
+
+    Args:
+        trignum (int|ints, optional): trigger numbers. Defaults to None.
+        trigrange ([int,int]], optional): high and low (inclusive) trigger numbers. Defaults to None.
+        time (_type_, optional): time or timerange. Defaults to None.
+        rows (_type_, optional): rows from 'swifttdrss' table. Defaults to None.
+    """
+    FIXME
+    pass
+
+def _download_TTE_heasarc(trignum, save_dir=None, match=None, clobber=False):
+    tdrssrows = from_heasarc_table(tablename='swifttdrss', Target_ID=trignum,
+                                   fields='Target_ID,Time,ObsID,Master_Flag')
+    result = {}
+    if match is None:
+        match='*bevsh*'
+    for row in tdrssrows:
+        targetid:int = row['TARGET_ID']
+        obsid:str = row['OBSID']
+        if row['MASTER_FLAG'].strip() == 'Y':
+            obsdata = download_swiftdata([row['OBSID']], save_dir=save_dir,
+                                         auxil=False, match=match, clobber=clobber)
+            result[obsid] = obsdata[obsid]
+        else:
+            result
+            t = swiftbat.any2datetime(row['TIME'], mjd=True)
+            dirurl = f"https://heasarc.gsfc.nasa.gov/FTP/swift/data/tdrss/{t:%Y_%m}/{obsid}"
+            dirpath = datadir(tdrss=True).joinpath(obsid)
+            dirpath.mkdir(exist_ok=True, parents=True)
+            fileurls = dir_from_url(dirurl)
+            result[obsid] = dict(obsoutdir=dirpath, success=False, downloaded = [], files=[])
+            for fname, url in fileurls.items():
+                if match and not fnmatch.fnmatch(fname, match):
+                    continue
+                destpath = dirpath.joinpath(fname)
+                result[obsid]['files'].append(destpath)
+                if destpath.exists() and not clobber:
+                    continue
+                download_file(url, destpath)
+                result[obsid]['downloaded'].append(destpath)
+        result[obsid].update(dict(trigger=targetid, tdrssrow=row, success=True))
+    return result
+
+def _download_TTE_quicklook():
+	raise NotImplementedError("TTE data from quicklook not yet implemented")
+    pass
+
+
 def download_swiftdata_legacy(table, reload=False,
                         bat=True, log=True, auxil=True, uvot=False, xrt=False,
                         save_dir=None) -> dict:
@@ -1276,7 +1342,11 @@ def reset_pdir():
 
     :return:
     """
-    os.environ['PFILES'] = _orig_pdir
+    if _orig_pdir is None:
+		os.environ.pop('PFILES', None)
+	else:
+	    os.environ['PFILES'] = _orig_pdir
+	    
 
 def concatenate_data(bat_observation, source_ids, keys, energy_range=[14,195], chronological_order=True):
     """
