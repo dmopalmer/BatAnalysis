@@ -375,7 +375,7 @@ helps to debug in case of an error.
             os.chdir(pha_dir)
 
     # Split the filename by extension, so as to remove the .pha and replace it with .rsp
-        out = pha_file.split(".")[0] + '.rsp'
+        out = filename.stem + '.rsp' #pha_file.split(".")[0] + '.rsp', remove this since sources can have '.' in name
 
     #create drm
         output=hsp.batdrmgen(infile=pha_file, outfile=out, chatter=2, clobber="YES", hkfile="NONE")
@@ -457,7 +457,8 @@ def fit_spectrum(phafilename,surveyobservation, plotting=True, generic_model=Non
     pha_dir = phafilename.parent
     pha_file = phafilename.name
 
-    pointing_id=  pha_file.split(".")[0].split("_")[-1]
+    # The old statement: pointing_id=pha_file.split(".")[0].split("_")[-1] didnt work if source_id has period in it
+    pointing_id=  phafilename.stem.split("_")[-1]
 
     if len(pha_file.split("_survey"))>1:
         #weve got a pha for a normal survey catalog
@@ -595,7 +596,7 @@ def fit_spectrum(phafilename,surveyobservation, plotting=True, generic_model=Non
         surveyobservation.set_pointing_info(pointing_id, "model_params", model_params, source_id=source_id)
 
     # Incorporating the model names, parameters, errors into the BatSurvey object.
-    xsp.Xset.save(pha_file.split(".")[0])
+    xsp.Xset.save(phafilename.stem+".xcm") #pha_file.split(".")[0]
     xspec_savefile = phafilename.parent.joinpath(phafilename.stem+".xcm")  #os.path.join(pha_dir, pha_file.split(".")[0] + ".xcm")
     surveyobservation.set_pointing_info(pointing_id, "xspec_model", xspec_savefile, source_id=source_id)
 
@@ -678,7 +679,8 @@ def calculate_detection(surveyobservation,source_id, pl_index=2, nsigma=3,bkg_ns
         pha_dir = phafilename_list[i].parent
         pha_file = phafilename_list[i].name
 
-        pointing_id=pha_file.split(".")[0].split("_")[-1]
+        # The old statement: pointing_id=pha_file.split(".")[0].split("_")[-1] didnt work if source_id has period in it
+        pointing_id = phafilename_list[i].stem.split("_")[-1]
 
         # Within the pointing dictionar we have the "key" called "Xspec_model" which has the parameters, values and errors.
         error_issues = False #preset this here
@@ -714,8 +716,9 @@ def calculate_detection(surveyobservation,source_id, pl_index=2, nsigma=3,bkg_ns
             surveyobservation.calculate_pha(calc_upper_lim=True, bkg_nsigma=bkg_nsigma, id_list=source_id,single_pointing=pointing_id)
 
             # can also do surveyobservation.get_pha_filenames(id_list=source_id,pointing_id_list=pointing_id, getupperlim=True)
-            # to get the created upperlimit file
-            bkgnsigma_upper_limit_pha_file= pha_file.split(".")[0]+'_bkgnsigma_%d'%(bkg_nsigma) + '_upperlim.pha'
+            # to get the created upperlimit file. Will do this because it is more robust
+            #bkgnsigma_upper_limit_pha_file= pha_file.split(".")[0]+'_bkgnsigma_%d'%(bkg_nsigma) + '_upperlim.pha'
+            bkgnsigma_upper_limit_pha_file = surveyobservation.get_pha_filenames(id_list=source_id ,pointing_id_list=pointing_id, getupperlim=True)[0].name
 
             try:
                 calc_response(bkgnsigma_upper_limit_pha_file)
