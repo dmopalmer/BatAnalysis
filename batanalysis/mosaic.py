@@ -2,7 +2,7 @@
 This file is meant to hold the functions that allow users to create mosaic-ed images for survey data
 '''
 import calendar
-from .batlib import dirtest, curdir, met2utc
+from .batlib import dirtest, met2utc
 from .bat_survey import MosaicBatSurvey
 import numpy as np
 from astropy.time import Time
