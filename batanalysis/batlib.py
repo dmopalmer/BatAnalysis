@@ -474,7 +474,7 @@ def fit_spectrum(phafilename,surveyobservation, plotting=True, generic_model=Non
     
     xsp.AllData -= "*"
     s = xsp.Spectrum(pha_file)  # from xspec import * has been done at the top. This is a spectrum object
-    # s.ignore("**-15,150-**")	#Ignoring energy ranges below 15 and above 150 keV.
+    # s.ignore("**-15,150-**")    #Ignoring energy ranges below 15 and above 150 keV.
 
     
     # Define model
@@ -483,15 +483,11 @@ def fit_spectrum(phafilename,surveyobservation, plotting=True, generic_model=Non
         if type(generic_model) is str:
 
             if "cflux" in generic_model: #The user must provide the cflux, or else we will not be able to predict of there is a statistical detection (in the next function).
-	    
                 try:
                     model=xsp.Model(generic_model,setPars=setPars) #Set the initial value for the fitting using the Model object attribute
-
                 except Exception as e:
                     print(e)
                     raise ValueError("The model needs to be specified correctly")
-
-
             else: 
                 raise ValueError("The model needs cflux in order to calulate error on the flux in 14-195 keV")
 
@@ -520,12 +516,12 @@ def fit_spectrum(phafilename,surveyobservation, plotting=True, generic_model=Non
 
            
 
-                # model_components=model.componentNames  #This is a list of the model components
-		#Check if the model is XSPEC compatible : Done
-		#Listing down the model parameters in a dictionary: parm1: Value, param2: Value....
-		# If no initial values given , default XSPEC values to be used.
-        	#We will manipulate these param values to "set a value" or "freeze/thaw" a value, set a range for these viable values.
-		#We can call the best fit param values, after fit.
+        # model_components=model.componentNames  #This is a list of the model components
+        #Check if the model is XSPEC compatible : Done
+        #Listing down the model parameters in a dictionary: parm1: Value, param2: Value....
+        # If no initial values given , default XSPEC values to be used.
+        #We will manipulate these param values to "set a value" or "freeze/thaw" a value, set a range for these viable values.
+        #We can call the best fit param values, after fit.
 
 
        # Fitting the data with this model
@@ -671,7 +667,7 @@ def calculate_detection(surveyobservation,source_id, pl_index=2, nsigma=3,bkg_ns
 
     flux_upperlim=[]
 
-    phafilename_list=surveyobservation.get_pha_filenames(id_list=[source_id],pointing_id_list=pointing_ids) #By specifying the source_id, we now have the specific PHA filename list corresponding to the pointing_id_list for this given bat survey observation.	
+    phafilename_list=surveyobservation.get_pha_filenames(id_list=[source_id],pointing_id_list=pointing_ids) #By specifying the source_id, we now have the specific PHA filename list corresponding to the pointing_id_list for this given bat survey observation.
    
     for i in range(len(phafilename_list))  :  #Loop over all phafilename_list, 
 
@@ -806,7 +802,7 @@ def calculate_detection(surveyobservation,source_id, pl_index=2, nsigma=3,bkg_ns
         os.chdir(current_dir)
 
 
-    return  flux_upperlim   	#This is a list for all the Valid non-detection pointings
+    return  flux_upperlim       #This is a list for all the Valid non-detection pointings
 
 
 def print_parameters(obs_list, source_id, values=["met_time","utc_time", "exposure"], energy_range=[14,195], \
@@ -989,6 +985,9 @@ def download_swiftdata(table,  reload=False,
     :param xrt: load the xrt data (high volume, defaults to false)
     :param tdrss: load the tdrss data (necessary for triggered BAT event data, defaults to True)
     :param save_dir: The output directory where the observation ID directories will be saved
+    (From swifttools.swift_too.Data )
+    :param fetch: Download the data if it is not locally cached (defaults to false)
+    :param match: pattern (or list) to match (defaults to all)
     :param kwargs: passed to swifttools.swift_too.Data
     :return: dict{obsid: {obsoutdir:..., success:..., loaded:..., [, datafiles:swtoo.Data][, ]}
     """
@@ -1028,8 +1027,9 @@ def download_swiftdata(table,  reload=False,
         result = dict(success=True, obsoutdir=obsoutdir, quicklook=False)
         try:
             clobber = reload or quicklookfile.exists()
-            data = swtoo.Data(obsid=obsid, clobber=clobber,
+            data = swtoo.Swift_Data(obsid=obsid, clobber=clobber,
                             bat=bat, log=log, auxil=auxil, uvot=uvot, xrt=xrt, tdrss=tdrss,
+                            fetch=fetch,
                             outdir=str(save_dir), **kwargs)
             result['data'] = data
             if data.quicklook:  # Mark the directory as quicklook
@@ -1122,7 +1122,7 @@ def _download_TTE_heasarc(trignum, save_dir=None, match=None, clobber=False):
     return result
 
 def _download_TTE_quicklook():
-	raise NotImplementedError("TTE data from quicklook not yet implemented")
+    raise NotImplementedError("TTE data from quicklook not yet implemented")
     pass
 
 
@@ -1343,10 +1343,10 @@ def reset_pdir():
     :return:
     """
     if _orig_pdir is None:
-		os.environ.pop('PFILES', None)
-	else:
-	    os.environ['PFILES'] = _orig_pdir
-	    
+        os.environ.pop('PFILES', None)
+    else:
+        os.environ['PFILES'] = _orig_pdir
+
 
 def concatenate_data(bat_observation, source_ids, keys, energy_range=[14,195], chronological_order=True):
     """
