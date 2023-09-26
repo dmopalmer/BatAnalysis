@@ -149,8 +149,6 @@ class BatObservation(object):
 
 
 
-
-
 class Lightcurve(object):
     """
     This is a general light curve class that contains typical information that a user may want from their lightcurve.
