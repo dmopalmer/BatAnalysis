@@ -160,6 +160,9 @@ def create_custom_catalog(
     if type(src_glat_list) is not list:
         src_glat_list = [src_glat_list]
 
+    #name sure that the source names are ascii strings
+    src_name_list = [i.encode('ascii') for i in src_name_list]
+
     # set default for catalog name and location
     catalog_name = Path(catalog_name)
     if catalog_dir is None:
@@ -387,7 +390,7 @@ def calc_response(phafilename, srcname=None, indir=None, outdir=None):
     if type(phafilename) is not list:
         phafilename = [phafilename]
 
-    # when passing in tht whole filename, the paths mess up the conection between the response file and the pha file since
+    # when passing in the whole filename, the paths mess up the conection between the response file and the pha file since
     # there seems to be some character limit to this header value. Therefore we need to cd to the directory that the PHA
     # file lives in and create the .rsp file and then cd back to the original location.
 
@@ -1107,7 +1110,7 @@ def print_parameters(
 
 
 def download_swiftdata(
-    table,
+    observations,
     reload=False,
     jobs=10,
     bat=True,
@@ -1120,13 +1123,31 @@ def download_swiftdata(
     **kwargs,
 ) -> dict:
     """
-    Downloads swift data from heasarc. To download
+    Download Swift data from HEASARC or quicklook sites to a local mirror directory.
 
-    :param table: A astropy query table with OBSIDs, or a list of OBSIDs, that the user would like to download
+    If the data already exists in the mirror, it is not reloaded unless it is from
+    a quicklook site, or if reload is set.
+
+    Data for observations can be selected by instrument or by filename match.
+
+    Observations are specified as a list of OBSIDs, or a table with an 'OBSID' field.
+
+    Match is a string or list of strings that match the filenames using unix globbing rules.
+    e.g. `match=['*brtms*', '*sao.*']` will match both the BAT 64 ms rates and the
+    instrument auxiliary orbit information file (if bat=True and auxil=True are set) for
+    each observation.
+
+    The result is returned in a dict indexed by OBSID.  The 'data' element of an OBSID's
+    dict entry is a `swifttools.swift_too.Swift_Data` table including attributes for
+    the  .url and .localpath of each file.
+
+
+    :param observations: OBSIDs to download
     :param reload: load even if the data is already in the save_dir
-    :param jobs: number of simultaneous download jobs.  (Set to 1 to execute in main thread)
+    :param fetch: Download the data if it is not locally cached (defaults to True)
+    :param jobs: number of simultaneous download jobs.  (Set to 1 to execute unthreaded.)
     :param bat: load the bat data
-    :param auxil: load the bat data
+    :param auxil: load the auxil data
     :param log: load the log data   (mostly diagnostic, defaults to false)
     :param uvot: load the uvot data (high volume, defaults to false)
     :param xrt: load the xrt data (high volume, defaults to false)
@@ -1148,11 +1169,11 @@ def download_swiftdata(
     if save_dir is None:
         save_dir = datadir()
     save_dir = Path(save_dir).resolve()
-    if np.isscalar(table) or isinstance(table, ap.table.row.Row):
-        table = [table]
+    if np.isscalar(observations) or isinstance(observations, ap.table.row.Row):
+        observations = [observations]
     obsids = []
-    for entry in table:
-        try:  # swiftmastr observation table
+    for entry in observations:
+        try:    # swiftmastr observation table
             entry = entry["OBSID"]
         except:
             pass
@@ -1196,6 +1217,11 @@ def download_swiftdata(
 def _download_single_observation(
     obsid, *, reload, bat, auxil, log, uvot, xrt, tdrss, save_dir, nowts, **kwargs
 ):
+    """Helper function--not for general use
+    
+    Downloads files for a single OBSID, given parameters from download_swiftdata()
+    after encapsulation as a partial function for threading.
+    """
     obsoutdir = save_dir.joinpath(obsid)
     quicklookfile = obsoutdir.joinpath(".quicklook")
     result = dict(obsid=obsid, success=True, obsoutdir=obsoutdir, quicklook=False)
