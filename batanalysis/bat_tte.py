@@ -16,9 +16,12 @@ import astropy.units as u
 import numpy as np
 from astropy.io import fits
 
-from .batlib import dirtest, decompose_det_id
+from .bat_dph import BatDPH
+from .bat_dpi import BatDPI
+from .bat_skyview import BatSkyView
 from .batobservation import BatObservation
 from .batproducts import Lightcurve, Spectrum
+from .tte_data import TimeTaggedEvents
 
 # for python>3.6
 try:
@@ -28,58 +31,7 @@ except ModuleNotFoundError as err:
     print(err)
 
 
-class TimeTaggedEvents(object):
-    """
-    This class encapsulates the event data that is obtained by the BAT instrument.
-
-    TODO: add methods to add/concatenate event data, plot event data, etc
-    """
-
-    def __init__(
-            self,
-            times,
-            detector_id,
-            detx,
-            dety,
-            quality_flag,
-            energy,
-            pulse_height_amplitude,
-            pulse_invariant,
-            mask_weight=None,
-    ):
-        """
-        This initalizes the TimeTaggedEvent class and allows for the data to be accessed easily.
-
-        :param times:
-        :param detector_id:
-        :param detx:
-        :param dety:
-        :param quality_flag:
-        :param energy:
-        :param pulse_height_amplitude:
-        :param pulse_invariant:
-        :param mask_weight:
-        """
-
-        self.time = times
-        self.detector_id = detector_id
-        self.detx = detx
-        self.dety = dety
-        self.quality_flag = quality_flag
-        self.energy = energy
-        self.pha = pulse_height_amplitude
-        self.pi = pulse_invariant
-        self.mask_weight = mask_weight
-
-        # get the block/DM/sandwich/channel info
-        block, dm, side, channel = decompose_det_id(self.data["DET_ID"])
-        self.detector_block = block
-        self.detector_dm = dm
-        self.detector_sand = side
-        self.detector_chan = channel
-
-
-class BatEvent(BatObservation, TimeTaggedEvents):
+class BatEvent(BatObservation):
     def __init__(
             self,
             obs_id,
@@ -262,13 +214,21 @@ class BatEvent(BatObservation, TimeTaggedEvents):
             # get the tdrss coordinates if the file exists
             if len(tdrss_centroid_file) > 0:
                 with fits.open(tdrss_centroid_file[0]) as file:
-                    tdrss_ra = file[0].header["BRA_OBJ"]
-                    tdrss_dec = file[0].header["BDEC_OBJ"]
+                    if "deg" in file[0].header.comments["BRA_OBJ"]:
+                        tdrss_ra = file[0].header["BRA_OBJ"] * u.deg
+                        tdrss_dec = file[0].header["BDEC_OBJ"] * u.deg
+                    else:
+                        raise ValueError(
+                            "The TDRSS msbce file BRA/BDEC_OBJ does not seem to be in the units of decimal degrees which is not supported.")
 
             # get info from event file which must exist to get to this point
             with fits.open(self.event_files) as file:
-                event_ra = file[0].header["RA_OBJ"]
-                event_dec = file[0].header["DEC_OBJ"]
+                if "deg" in file[0].header.comments["RA_OBJ"]:
+                    event_ra = file[0].header["RA_OBJ"] * u.deg
+                    event_dec = file[0].header["DEC_OBJ"] * u.deg
+                else:
+                    raise ValueError(
+                        "The event file RA/DEC_OBJ does not seem to be in the units of decimal degrees which is not supported.")
 
             # by default, ra/dec="event" to use the coordinates set here by SDC but can use other coordinates
             if "tdrss" in ra or "tdrss" in dec:
@@ -285,13 +245,13 @@ class BatEvent(BatObservation, TimeTaggedEvents):
                 self.ra = event_ra
                 self.dec = event_dec
             else:
-                if np.isreal(ra) and np.isreal(dec):
+                if isinstance(ra, u.Quantity) and isinstance(dec, u.Quantity):
                     self.ra = ra
                     self.dec = dec
                 else:
                     # the ra/dec values must be decimal degrees for the following analysis to work
                     raise ValueError(
-                        f"The passed values of ra and dec are not decimal degrees. Please set these to appropriate values."
+                        f"The passed values of ra and dec are not astropy unit quantities. Please set these to appropriate values."
                     )
 
             # see if the RA/DEC that the user wants to use is what is in the event file
@@ -402,11 +362,18 @@ class BatEvent(BatObservation, TimeTaggedEvents):
             complete_file = self.result_dir.joinpath(".batevent_complete")
             complete_file.touch()
 
+            # Now we can let the user define what they want to do for their light
+            # curves, spctra, etc. Need to determine how to organize this for any source in FOV to be analyzed.
+
+            # initalize the properties to be None
+            self.spectra = None
+            self.lightcurves = None
+            self.dphs = None
+            self.dpis = None
+            self.skyviews = None
+
             # save the state so we can load things later
             self.save()
-
-            # Now we can let the user define what they want to do for their light
-            # curves and spctra. Need to determine how to organize this for any source in FOV to be analyzed.
 
         else:
             load_file = Path(load_file).expanduser().resolve()
@@ -415,27 +382,10 @@ class BatEvent(BatObservation, TimeTaggedEvents):
     def _parse_event_file(self):
         """
         This function reads in the data from the event file
-        :return:
+        :return: None
         """
 
-        self.data = {}
-        with fits.open(self.event_files) as file:
-            data = file[1].data
-            for i in data.columns:
-                self.data[i.name] = u.Quantity(data[i.name], i.unit)
-
-        TimeTaggedEvents.__init__(
-            self,
-            self.data["TIME"],
-            self.data["DET_ID"],
-            self.data["DETX"],
-            self.data["DETY"],
-            self.data["EVENT_FLAGS"],
-            self.data["ENERGY"],
-            self.data["PHA"],
-            self.data["PI"],
-            mask_weight=self.data["MASK_WEIGHT"],
-        )
+        self.data = TimeTaggedEvents.from_file(self.event_files)
 
     def load(self, f):
         """
@@ -455,7 +405,7 @@ class BatEvent(BatObservation, TimeTaggedEvents):
         """
         file = self.result_dir.joinpath(
             "batevent.pickle"
-        )  # os.path.join(self.result_dir, "batsurvey.pickle")
+        )
         with open(file, "wb") as f:
             pickle.dump(self.__dict__, f, 2)
         print("A save file has been written to %s." % (str(file)))
@@ -467,7 +417,7 @@ class BatEvent(BatObservation, TimeTaggedEvents):
 
         The resulting quality mask is placed in the bat/hk/directory with the appropriate observation ID and code=bdqcb
 
-        This should be taken care of by the SDC but this funciton will document how this can be done incase a detector
+        This should be taken care of by the SDC but this function will document how this can be done incase a detector
         quality mask has not been created. Have confirmed that the bat/hk/*bdqcb* file is the same as what is outputted
         by the website linked above
 
@@ -600,6 +550,27 @@ class BatEvent(BatObservation, TimeTaggedEvents):
 
         return None
 
+    @property
+    def ra(self):
+        """The right ascension of the source and the associated weighting assigned to the event file"""
+        return self._ra
+
+    @ra.setter
+    @u.quantity_input(value=u.deg)
+    def ra(self, value):
+        self._ra = value
+
+    @property
+    def dec(self):
+        """The declination of the source and the associated weighting assigned to the event file"""
+        return self._dec
+
+    @dec.setter
+    @u.quantity_input(value=u.deg)
+    def dec(self, value):
+        self._dec = value
+
+    @u.quantity_input(ra=u.deg, dec=u.deg)
     def apply_mask_weighting(self, ra=None, dec=None):
         """
         This method is meant to apply mask weighting for a source that is located at a certain position on the sky.
@@ -617,12 +588,12 @@ class BatEvent(BatObservation, TimeTaggedEvents):
 
         # batmaskwtevt infile=bat/event/sw01116441000bevshsp_uf.evt attitude=auxil/sw01116441000sat.fits.gz detmask=grb.mask ra= dec=
         if ra is None and dec is None:
-            ra = self.ra
-            dec = self.dec
+            ra = self.ra.to(u.deg)
+            dec = self.dec.to(u.deg)
         else:
             # set the new ra/dec values
-            self.ra = ra
-            self.dec = dec
+            self.ra = ra.to(u.deg)
+            self.dec = dec.to(u.deg)
 
         # if this attribute is None, we need to define it and create it using the standard naming convention
         if self.auxil_raytracing_file is None:
@@ -636,8 +607,8 @@ class BatEvent(BatObservation, TimeTaggedEvents):
             infile=str(self.event_files),
             attitude=str(self.attitude_file),
             detmask=str(self.detector_quality_file),
-            ra=ra,
-            dec=dec,
+            ra=ra.value,
+            dec=dec.value,
             auxfile=str(temp_auxil_raytracing_file),
             clobber="YES",
         )
@@ -650,18 +621,23 @@ class BatEvent(BatObservation, TimeTaggedEvents):
 
         # modify the event file header with the RA/DEC of the weights that were applied, if they are different
         with fits.open(self.event_files, mode="update") as file:
-            event_ra = file[0].header["RA_OBJ"]
-            event_dec = file[0].header["DEC_OBJ"]
+            if "deg" in file[0].header.comments["RA_OBJ"]:
+                event_ra = file[0].header["RA_OBJ"] * u.deg
+                event_dec = file[0].header["DEC_OBJ"] * u.deg
+            else:
+                raise ValueError(
+                    "The event file RA/DEC_OBJ does not seem to be in the units of decimal degrees which is not supported.")
+
             if event_ra != self.ra or event_dec != self.dec:
                 # update the event file RA/DEC_OBJ values everywhere
                 for i in file:
-                    i.header["RA_OBJ"] = self.ra
-                    i.header["DEC_OBJ"] = self.dec
+                    i.header["RA_OBJ"] = self.ra.to(u.deg).value
+                    i.header["DEC_OBJ"] = self.dec.to(u.deg).value
 
                     # the BAT_RA/BAT_DEC keys have to updated too since this is something
                     # that the software manual points out should be updated
-                    i.header["BAT_RA"] = self.ra
-                    i.header["BAT_DEC"] = self.dec
+                    i.header["BAT_RA"] = self.ra.to(u.deg).value
+                    i.header["BAT_DEC"] = self.dec.to(u.deg).value
 
             file.flush()
 
@@ -675,7 +651,7 @@ class BatEvent(BatObservation, TimeTaggedEvents):
 
         return None
 
-    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"])
+    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
     def create_lightcurve(
             self,
             lc_file=None,
@@ -686,7 +662,7 @@ class BatEvent(BatObservation, TimeTaggedEvents):
             timebins=None,
             T0=None,
             is_relative=False,
-            energybins=["15-25", "25-50", "50-100", "100-350"],
+            energybins=[15, 25, 50, 100, 350] * u.keV,
             mask_weighting=True,
             recalc=False,
     ):
@@ -694,14 +670,24 @@ class BatEvent(BatObservation, TimeTaggedEvents):
         This method returns a lightcurve object which can be manipulated in different energies/timebins. The lightcurve
         path may be provided, which can be a lightcurve that should be loaded (if created already), or the name of the
         lightcurve that will be created with the specified energy/time binning. If no lightcurve file name is provided,
-        the method will determine a generic lightcurve name.
+        the method will determine a generic lightcurve name. By default, the lightcurves are saved in the
+        OBSID_eventresult/lc/ directory.
 
         This method allows one to specify different energy/time binnings however since this method returns a Lightcurve
         class, the resulting Lightcurve class instance can be used to rebin the lightcurve however the user wants. The
         lightcurve is also saved to the BatEvent.lightcurve attribute when it is created thorugh this method.
 
-        :param lc_file: path object of the lightcurve file that will be read in, if previously calculated,
-            or the location/name of the new lightcurve file that will contain the newly calculated lightcurve.
+        This method also returns the Lightcurve object.
+
+        Any newly created Lightcurve objects are saved to the lightcurves property where they are stored in order based
+        on their creation. If a lightcurve file is loaded in, then the Lightcurve object will not be saved to the
+        lightcurves property by default. If a user wants to do so they can set the loaded Lightcurve object to the
+        lightcurves property (ie self.lightcurves = loaded_lightcurve).
+
+
+        :param lc_file: None or a path object of the lightcurve file that will be read in, if previously calculated,
+            or the location/name of the new lightcurve file that will contain the newly calculated lightcurve. If set
+            to None, the lightcurve filename will be dynamically determined from the other input parameters.
         :param timebinalg: a string that can be set to "uniform", "snr", "highsnr", or "bayesian"
             "uniform" will do a uniform time binning from the specified tmin to tmax with the size of the bin set by
                 the timedelta parameter.
@@ -720,30 +706,29 @@ class BatEvent(BatObservation, TimeTaggedEvents):
         :param tstart: astropy.units.Quantity denoting the minimum values of the timebin edges that the user would like
             the lightcurve to be binned into. Units will usually be in seconds for this. The values can be relative to
             the specified T0. If so, then the T0 needs to be specified andthe is_relative parameter should be True.
-            NOTE: if tmin/tmax are specified then anything passed to the timebins parameter is ignored.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
 
-            If the length of tmin is 1 then this denotes the time when the binned lightcurve should start. For this single
+            If the length of tstart is 1 then this denotes the time when the binned lightcurve should start. For this single
             value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
             should be True.
 
-            NOTE: if tmin/tmax are specified then anything passed to the timebins parameter is ignored.
         :param tstop: astropy.units.Quantity denoting the maximum values of the timebin edges that the user would like
             the lightcurve to be binned into. Units will usually be in seconds for this. The values can be relative to
             the specified T0. If so, then the T0 needs to be specified andthe is_relative parameter should be True.
-            NOTE: if tmin/tmax are specified then anything passed to the timebins parameter is ignored.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
 
-            If the length of tmin is 1 then this denotes the time when the binned lightcurve should end. For this single
+            If the length of tstop is 1 then this denotes the time when the binned lightcurve should end. For this single
             value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
             should be True.
 
-            NOTE: if tmin/tmax are specified then anything passed to the timebins parameter is ignored.
         :param timebins: astropy.units.Quantity denoting the array of time bin edges. Units will usually be in seconds
             for this. The values can be relative to the specified T0. If so, then the T0 needs to be specified and
             the is_relative parameter should be True.
-        :param T0: float or an astropy.units.Quantity object with some tiem of interest (eg trigger time)
+        :param T0: float or an astropy.units.Quantity object with some time of interest (eg trigger time)
         :param is_relative: Boolean switch denoting if the T0 that is passed in should be added to the
             timebins/tmin/tmax that were passed in.
-        :param energybins:
+        :param energybins: astropy.units.Quantity denoting the energy bin edges for the energy resolved lightcurves that
+            will be calculated
         :param mask_weighting: Boolean to denote if mask weighting should be applied. By default this is set to True,
             however if a source is out of the BAT field of view the mask weighting will produce a lightcurve of 0 counts.
             Setting mask_weighting=False in this case ignores the position of the source and allows the pure rates/counts
@@ -756,50 +741,80 @@ class BatEvent(BatObservation, TimeTaggedEvents):
         # timedel=1.0 timebinalg=u energybins=15-150
         # detmask=../hk/sw00145675000bcbdq.hk.gz clobber=YES
 
-        if lc_file is None:
-            if not recalc:
-                # make up a name for the light curve that hasnt been used already in the LC directory
-                lc_files = list(self.result_dir.joinpath("lc").glob("*.lc"))
-                lc_files = [str(i) for i in lc_files]
-                base = "lightcurve_"
-                count = 0
-                while np.any([f"{base}{count}.lc" in t for t in lc_files]):
-                    count += 1
-                lc_file = self.result_dir.joinpath("lc").joinpath(f"{base}{count}.lc")
-            else:
-                lc_files = list(self.result_dir.joinpath("lc").glob("*.lc"))
-                if len(lc_files) == 1:
-                    lc_file = lc_files[0]
-                else:
-                    raise ValueError(
-                        f"There are too many files which meet the criteria to be loaded. Please specify one of {lc_files}."
-                    )
-        else:
-            lc_file = Path(lc_file).expanduser().resolve()
+        lc_dir = self.result_dir.joinpath("lc")
 
+        if lc_file is None:
+            # contruct the template name from the other inputs
+            if timebins is not None or tstart is not None or tstop is not None:
+                # try to access tstart/tmin first
+                try:
+                    min_t = tstart.min().value
+                    max_t = tstop.max().value
+                except AttributeError as e:
+                    # now try to access timebins
+                    min_t = timebins.min().value
+                    max_t = timebins.max().value
+
+                # add on the T0 if needed
+                if is_relative:
+                    if isinstance(T0, u.Quantity):
+                        min_t += T0.value
+                        max_t += T0.value
+
+                    else:
+                        min_t += T0
+                        max_t += T0
+
+                # finally add the energy channels
+                lc_filename = Path(f"t_{min_t}-{max_t}_dt_custom_{len(energybins) - 1}chan.lc")
+            else:
+                # use th normal batbinevt related information with energy channel as distinguishing info
+                lc_filename = Path(
+                    f"t_{timebinalg}_dt_{timedelta / np.timedelta64(1, 's')}_{len(energybins) - 1}chan.lc")
+
+        else:
+            lc_filename = lc_file
+
+        if not lc_filename.is_absolute():
+            # assume that the user wants to put it in the lc directory, or load a file in the lc directory
+            lc_filename = lc_dir.joinpath(lc_filename)
+        else:
+            lc_filename = Path(lc_filename).expanduser().resolve()
+
+        # if the file exists and recalc=False, just load it in and return it. Dont need to add it to the list of
+        # lightcurves via the self.lightcurves property
+        do_t_energy_calc = not (lc_filename.exists() and not recalc)
+
+        # within Lightcurve, we determine if we load things in or recalculate the Lightcurve with the passed in parameters
         lc = Lightcurve(
-            lc_file,
+            lc_filename,
             self.event_files,
             self.detector_quality_file,
             recalc=recalc,
             mask_weighting=mask_weighting,
         )
-        lc.set_timebins(
-            timebinalg=timebinalg,
-            timedelta=timedelta,
-            tmin=tstart,
-            tmax=tstop,
-            timebins=timebins,
-            is_relative=is_relative,
-            T0=T0,
-        )
-        lc.set_energybins(energybins=energybins)
 
-        self.lightcurve = lc
+        if do_t_energy_calc:
+            lc.set_timebins(
+                timebinalg=timebinalg,
+                timedelta=timedelta,
+                tmin=tstart,
+                tmax=tstop,
+                timebins=timebins,
+                is_relative=is_relative,
+                T0=T0,
+            )
+            lc.set_energybins(energybins=energybins)
 
-        return self.lightcurve
+            self.lightcurves = lc
 
-    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"])
+        # TODO: how to deal with an event file being loaded in and a user wanting to load in a previously created
+        #  Lightcurve object? they can use this method to get the lightcurve object and then do event.lightcurves=lc,
+        #  will need to change the error for property only being able to be set to an empty list
+
+        return lc
+
+    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
     def create_pha(
             self,
             pha_file=None,
@@ -833,27 +848,37 @@ class BatEvent(BatObservation, TimeTaggedEvents):
         This method can load upper limit spectral files (spectra that allow users to construct flux upper limits when
         sources are not well detected). By default, these files are not loaded.
 
-        The spectrum/spectra get dynamically loaded to the spectrum attribute where the newly created spectrum/spectra
-        replaces what was saved in this attribute. This method also returns the Spectrum object or list of Spectrum
+        This method also returns the Spectrum object or list of Spectrum
         objects that is/are created.
 
-        :param pha_file: None, string, or Path object denoting whether a new predetermied filename should be used, or if
+        Any newly created Spectrum objects are saved to the spectra property where they are stored in order based on their
+        creation. If a pha file is loaded in, then the Spectrum will not be saved to the dphs property by default. If
+        a user wants to do so they can set the loaded spectrum to the spectra property (ie self.spectra = loaded_spectrum).
+
+
+        :param pha_file: None or a Path object denoting whether a new predetermined filename should be used, or if
             previous existing files should be loaded or written over (in conjunction with the recalc parameter). The
-            file should end with ".pha". If a string is passed without an abolute filepath then it is assumed that the
-            created pha file should be placed in the pha/ subdirectory  of the results directory
+            file should end with ".pha". If a string is passed without an absolute filepath then it is assumed that the
+            created pha file should be placed in the pha/ subdirectory  of the results directory. If set
+            to None, the pha filename will be dynamically determined from the other input parameters.
         :param tstart: astropy Quantity scalar or array denoting the start MET time of timebins that the user would like
             to create pha files for. A pha file will be created for each time range specified by tstart and tstop. The
             times can be defined relative to some time of interest which can be specified with the T0 parameter.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
         :param tstop: astropy Quantity scalar or array denoting the end MET time of timebins that the user would like to
             create pha files for. A pha file will be created for each time range specified by tstart and tstop. The
             times can be defined relative to some time of interest which can be specified with the T0 parameter.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
         :param timebins: astropy Quantity  array denoting the MET timebin edges that the spectra should be constructed
             for. The times can be defined relative to some time of interest which can be specified with the T0 parameter
         :param T0: float or astropy Quantity scalar denoting the time that time bins may be defined relative to
         :param is_relative: boolean to denote if the specified timebins are relative times with respect to T0
-        :param energybins: None or an array of energy bin edges that the pha files should be created with. None defaults
+        :param energybins: None or an astropy Quantity array of energy bin edges that the pha files should be created with. None defaults
             to the 80 channel CALDB energy bins.
-        :param recalc: Boolean to denote if a set of
+        :param recalc: Boolean to denote if a set of pha files should be recreated or if they should be loaded in, if
+            they already exist.
         :param mask_weighting: boolean, default True, to denote if the mask weighting should be applied in constructing the pha file.
         :param load_upperlims: boolean, default False, to denote if any of the upper limit pha files should be loaded
             from the pha directory within the results directory.
@@ -863,8 +888,17 @@ class BatEvent(BatObservation, TimeTaggedEvents):
         # timedel=0.0 timebinalg=u energybins=CALDB
         # detmask=../hk/sw00145675000bcbdq.hk.gz clobber=YES
 
+        pha_dir = self.result_dir.joinpath("pha")
+
         input_tstart = None
         input_tstop = None
+
+        # if the timebins is defined, will need to break it up into the tstart and tstop arrays to iterate over
+        # if tstart/tstop are specified we will prefer to use those
+        if timebins is not None:
+            input_tstart = timebins[:-1]
+            input_tstop = timebins[1:]
+
         # do error checking on tmin/tmax make sure both are defined and that they are the same length
         if (tstart is None and tstop is not None) or (
                 tstart is None and tstop is not None
@@ -883,10 +917,10 @@ class BatEvent(BatObservation, TimeTaggedEvents):
             else:
                 raise ValueError("Both tstart and tstop must have the same length.")
 
-        # if the timebins is defined, will need to break it up into the tstart and tstop arrays to iterate over
-        if timebins is not None:
-            input_tstart = timebins[:-1]
-            input_tstop = timebins[1:]
+        if energybins is None:
+            nchannels = 80
+        else:
+            nchannels = len(energybins) - 1
 
         # if we are passing in a number of timebins, the user can pass in a number of pha files to load/create so make
         # sure that we have the same number of pha_files passed in or that it is None
@@ -898,115 +932,74 @@ class BatEvent(BatObservation, TimeTaggedEvents):
         # and then they get recalcualted with whatever paramters get passed to the Lightcurve object.
 
         if pha_file is None:
-            # identify any pha files that may already exist. If there are make a list of them. If not then create a
-            # new set based on the timebins that the user has provided
-            pha_files = [
-                i.name for i in list(self.result_dir.joinpath("pha").glob("*.pha"))
-            ]
-
-            if not load_upperlims:
-                pha_files = [i for i in pha_files if "upperlim" not in i]
-
-            if not recalc:
-                if len(pha_files) > 0:
-                    final_pha_files = [
-                        self.result_dir.joinpath("pha").joinpath(f"{i}")
-                        for i in pha_files
-                    ]
-
-                    # can have some number of pha files that dont correspond to the number of timebins which we dont want to
-                    # handle right now. In the future can create the necessary amount if input_tstart.size > len(pha_files),
-                    # or choose a subset if input_tstart.size < len(pha_files)
-                    if input_tstart is not None and input_tstart.size != len(
-                            final_pha_files
-                    ):
-                        raise ValueError(
-                            "The number of pha files that exist in the pha directory do not match the "
-                            "specified time binning for the creation of spectra when recalc=False. "
-                        )
-
-                    # if the tstart/tstop is None, we need to fill these to iterate over them and load in the pha files
-                    if input_tstart is None:
-                        input_tstart = np.array([None] * len(final_pha_files))
-                        input_tstop = input_tstart
-
-                elif len(pha_files) == 0:
-                    # iterate through the pha files that need to be created
-                    final_pha_files = []
-                    base = "spectrum_"
-                    count = 0
-                    for i in range(input_tstart.size):
-                        final_pha_files.append(
-                            self.result_dir.joinpath("pha").joinpath(
-                                f"{base}{count}.pha"
-                            )
-                        )
-                        count += 1
-
+            # construct the template name from the spectral inputs
+            pha_filename = []
+            if input_tstop is not None:
+                for start, end in zip(input_tstart.value, input_tstop.value):
+                    if is_relative:
+                        if isinstance(T0, u.Quantity):
+                            start += T0.value
+                            end += T0.value
+                        else:
+                            start += T0
+                            end += T0
             else:
-                # list the currently existing pha files
-                final_pha_files = [
-                    self.result_dir.joinpath("pha").joinpath(f"{i}") for i in pha_files
-                ]
+                start = "start"
+                end = "end"
+                input_tstart = np.array([None])
+                input_tstop = np.array([None])
 
-                # can have that the input_tstart is None, in which case what are we doing? can have different number of
-                # input_tstart than final_pha_file, then just delete all files in pha
-                # directory for this case
-                if input_tstart is None:
-                    raise ValueError(
-                        "The number of pha files that exist in the pha directory do not match the "
-                        "specified time binning for the creation of spectra when recalc=True. "
-                    )
+            name = Path(f"t_{start}-{end}_{nchannels}chan.pha")
+            pha_filename.append(name)
 
-                if input_tstart is not None and input_tstart.size != len(
-                        final_pha_files
-                ):
-                    warnings.warn(
-                        f"Deleting all files in {self.result_dir.joinpath('pha')} and creating new"
-                        f"pha files for the passed in timebins"
-                    )
-                    dirtest(self.result_dir.joinpath("pha"))
-                    # iterate through the pha files that need to be created
-                    final_pha_files = []
-                    base = "spectrum_"
-                    count = 0
-                    for i in range(input_tstart.size):
-                        final_pha_files.append(
-                            self.result_dir.joinpath("pha").joinpath(
-                                f"{base}{count}.pha"
-                            )
-                        )
-                        count += 1
+            # if we want to load the upper limits, need to see if we have this file. Assume we are looking for
+            # files in the OBSID/pha directory
+            # f not, then default to using the non-upper limit pha file and throw a warning
+            if load_upperlims:
+                new_phafilename = []
+                for i in pha_filename:
+                    upperlim_files = list(pha_dir.glob(f"{i.stem}_bkgnsigma_*_upperlimit.pha"))
+                    if len(upperlim_files) > 0:
+                        for j in upperlim_files:
+                            new_phafilename.append(j)
+                    else:
+                        new_phafilename.append(i)
+                        warnings.warn(
+                            f"There is no associated upper limit pha file for {i}, will continue by just loading in this file.",
+                            stacklevel=2)
+                pha_filename = new_phafilename
 
         else:
-            # if a single file has been specified, assume that is should go in the event/pha directory unless
-            # the user has passed in an absolute file path
-            final_pha_files = [
-                self.result_dir.joinpath("pha").joinpath(f"{i}")
-                if not Path(i).is_absolute()
-                else Path(i).expanduser().resolve()
-                for i in pha_file
-            ]
+            if type(pha_file) is list:
+                pha_filename = pha_file
+            else:
+                pha_filename = [pha_file]
 
-            # need to see if input_tstart/input_tstop is None. If not None, then need to check that the lengths are the
-            # same
-            if input_tstop is not None and len(pha_file) != input_tstart.size:
-                raise ValueError(
-                    "The number of pha files does not match the number of timebins. Please make sure these are "
-                    "the same length or that pha_files is set to None"
-                )
+        # if a single file has been specified, assume that is should go in the event/pha directory unless
+        # the user has passed in an absolute file path
+        final_pha_files = [
+            pha_dir.joinpath(f"{i}")
+            if not Path(i).is_absolute()
+            else Path(i).expanduser().resolve()
+            for i in pha_filename
+        ]
 
-            # if input_stop/input_start is None, then we need to just set it to be the same length as the final_pha_files
-            # list. this is to get the loop below going.
-            if recalc and input_tstart is None and energybins is None:
-                raise ValueError(
-                    "recalc has been set to True, but there is not sufficient information for rebinning "
-                    f"the following lightcurves {','.join([i.name for i in final_pha_files])}. Please enter"
-                    "information related to a change in timebins or energy bins"
-                )
+        # need to see if input_tstart/input_tstop is None. If not None, then need to check that the lengths are the
+        # same
+        if input_tstop is not None and len(final_pha_files) != input_tstart.size:
+            raise ValueError(
+                "The number of pha files does not match the number of timebins. Please make sure these are "
+                "the same length or that pha_files is set to None"
+            )
 
         spectrum_list = []
+        do_t_energy_calc = []
         for i in range(input_tstart.size):
+            # if the file exists and recalc=False, just load it in and return it. Dont need to add it to the list of
+            # lightcurves via the self.lightcurves property
+            do_t_energy_calc.append(not (final_pha_files[i].exists() and not recalc))
+
+            # within this constructor we determine if we need to load things or not
             spectrum = Spectrum(
                 final_pha_files[i],
                 self.event_files,
@@ -1016,8 +1009,9 @@ class BatEvent(BatObservation, TimeTaggedEvents):
                 recalc=recalc,
             )
 
-            # need to check about recalculating this if recalc=False
-            if pha_file is None and recalc or pha_file is not None:
+            # if we needed to create a new pha file, then we should make sure we set the timebins/energybins
+            # we will also need to add the Spectrum to the spectra property
+            if do_t_energy_calc[i]:
                 spectrum.set_timebins(
                     tmin=input_tstart[i],
                     tmax=input_tstop[i],
@@ -1031,13 +1025,20 @@ class BatEvent(BatObservation, TimeTaggedEvents):
             spectrum_list.append(spectrum)
 
         # save the spectrum list as an attribute, if there is one spectrum then index it appropriately
+        # if len(spectrum_list) == 1:
+        #    self.spectra = spectrum_list[0]
+        # else:
+        #    self.spectra = spectrum_list
+        for i, t_energy_calc in zip(spectrum_list, do_t_energy_calc):
+            if t_energy_calc:
+                self.spectra = i
+
         if len(spectrum_list) == 1:
-            self.spectrum = spectrum_list[0]
+            return spectrum_list[0]
         else:
-            self.spectrum = spectrum_list
+            return spectrum_list
 
-        return self.spectrum
-
+    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
     def create_dph(
             self,
             dph_file=None,
@@ -1048,40 +1049,493 @@ class BatEvent(BatObservation, TimeTaggedEvents):
             is_relative=False,
             energybins=None,
             recalc=False,
-            mask_weighting=True,
     ):
         """
-        This method creates a detector plane histogram.
+        This method creates a detector plane histogram. By default, this method will create a single BatDPH object for
+        the time/energy ranges that are specified. If tstart/tstop/timebins is set to None, the default time binning
+        will be a single time bin extending from the start time to the end time of the event dataset. If energybins is
+        set to None, the default energy binning will be a single energy bin from 14-195 keV.
 
-        :return:
+        Any newly created BatDPH objects are saved to the dphs property where they are stored in order based on their
+        creation. If a DPH is loaded in, then the BatDPH will not be saved to the dphs property by default. If
+        a user wants to do so they can set the loaded BatDPH to the dphs property (ie self.dphs = loaded_dph).
+
+        :param dph_file: None or a path object of the dph file that will be read in, if previously calculated,
+            or the location/name of the new dph file that will contain the newly calculated dph. If set
+            to None, the DPH filename will be dynamically determined from the other input parameters. If the file exists,
+            then it will be either read in or recreated, depending on the recalc parameter. By default, the DPHs are
+            placed in the dph/ directory unless a Path object is passed in with an absolute filepath.
+        :param tstart: astropy.units.Quantity denoting the minimum values of the timebin edges that the user would like
+            the DPH to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
+            If the length of tstart is 1 then this denotes the time when the binned lightcurve should start. For this single
+            value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
+            should be True.
+        :param tstop: astropy.units.Quantity denoting the maximum values of the timebin edges that the user would like
+            the DPH to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
+            If the length of tstop is 1 then this denotes the time when the binned lightcurve should end. For this single
+            value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
+            should be True.
+        :param timebins: astropy.units.Quantity denoting the array of time bin edges. Units will usually be in seconds
+            for this. The values can be relative to the specified T0. If so, then the T0 needs to be specified and
+            the is_relative parameter should be True.
+        :param T0: float or an astropy.units.Quantity object with some time of interest (eg trigger time)
+        :param is_relative: Boolean switch denoting if the T0 that is passed in should be added to the
+            timebins/tstart/tstop that were passed in.
+        :param energybins: astropy.units.Quantity denoting the energy bin edges for the DPH that will be produced. None
+            sets the default energy binning to be 14-195 keV
+        :param recalc: Boolean to denote if the DPH specified by dph_file should be recalculated with the
+            specified time/energy binning. See the BatDPH class for a list of these defaults.
+        :return: BatDPH object or list of BatDPH objects
         """
 
-        raise NotImplementedError("Creating the DPH has not yet been implemented.")
+        dph_dir = self.result_dir.joinpath("dph")
 
-        return None
+        # make the directory if it doesnt exist, if it does then we are fine. This is done here because users dont
+        # usually create DPHs with the event file but this creates a subdirectory to put them in  if a user wants to
+        # do so
+        dph_dir.mkdir(exist_ok=True)
 
-    def create_dpi(self, **kwargs):
+        if energybins is None:
+            nchannels = 1
+        else:
+            nchannels = len(energybins) - 1
+
+        input_tstart = None
+        input_tstop = None
+
+        # if the timebins is defined, will need to break it up into the tstart and tstop arrays to iterate over
+        # if tstart/tstop are specified we will prefer to use those
+        if timebins is not None:
+            input_tstart = timebins[:-1]
+            input_tstop = timebins[1:]
+
+        # do error checking on tmin/tmax make sure both are defined and that they are the same length
+        if (tstart is None and tstop is not None) or (
+                tstart is None and tstop is not None
+        ):
+            raise ValueError("Both tstart and tstop must be defined.")
+
+        if tstart is not None and tstop is not None:
+            if tstart.size == tstop.size:
+                input_tstart = tstart.copy()
+                input_tstop = tstop.copy()
+
+            # make sure that we can iterate over the times even if the user passed in a single scalar quantity
+            if input_tstart.isscalar:
+                input_tstart = u.Quantity([input_tstart])
+                input_tstop = u.Quantity([input_tstop])
+            else:
+                raise ValueError("Both tstart and tstop must have the same length.")
+
+        if dph_file is None:
+            # construct the template name from the inputs
+            dph_filename = []
+            if input_tstop is not None:
+                if is_relative:
+                    if isinstance(T0, u.Quantity):
+                        start = (input_tstart + T0).min().value
+                        end = (input_tstop + T0).max().value
+                    else:
+                        start = input_tstart.min().value + T0
+                        end = input_tstop.max().value + T0
+
+                ntbins = input_tstart.size
+            else:
+                start = "start"
+                end = "end"
+                ntbins = 1
+
+            name = Path(f"t_{start}-{end}_{ntbins}tbins_{nchannels}chan.dph")
+            dph_filename.append(name)
+
+
+        else:
+            dph_filename = dph_file
+
+        final_dph_files = [
+            dph_dir.joinpath(f"{i}")
+            if not Path(i).is_absolute()
+            else Path(i).expanduser().resolve()
+            for i in dph_filename
+        ]
+
+        dph_list = []
+        for i in range(len(final_dph_files)):
+            # if the file exists and recalc=False, just load it in and return it. Dont need to add it to the list of
+            # dphs via the self.dphs property
+            do_t_energy_calc = not (final_dph_files[i].exists() and not recalc)
+
+            dph = BatDPH(final_dph_files[i], event_file=self.event_files,
+                         recalc=recalc)
+
+            if do_t_energy_calc:
+                dph.set_timebins(tmin=input_tstart, tmax=input_tstop, is_relative=is_relative, T0=T0)
+                if energybins is not None:
+                    dph.set_energybins(energybins=energybins)
+
+                self.dphs = dph
+
+                dph_list.append(dph)
+
+        return dph_list[0]
+
+    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
+    def create_dpi(self,
+                   dpi_file=None,
+                   tstart=None,
+                   tstop=None,
+                   timebins=None,
+                   T0=None,
+                   is_relative=False,
+                   energybins=[15, 350] * u.keV,
+                   recalc=False,
+                   ):
         """
-        This method creates and returns a detector plane image.
+        This method creates and returns a BatDPI object. Unlike the create_DPH method, one DPI created here
+        corresponds to only 1 time bin and as many energybins as is specified by the user.
 
-        :param kwargs:
-        :return:
+        If the user attempts to create a DPI file outside of the range of times for which there is event data, an error
+        will be raised.
+
+        Any newly created BatDPI objects are saved to the dpis property where they are stored in order based on their
+        creation. If a DPI is loaded in, then the BatDPI will not be saved to the dpis property by default. If
+        a user wants to do so they can set the loaded BatDPI to the dpis property (ie self.dpis = loaded_dpi).
+
+
+        :param dpi_file: None or a path object of the DPI file that will be read in, if previously calculated,
+            or the location/name of the new DPI file that will contain the newly calculated DPI. If set
+            to None, the DPI filename will be dynamically determined from the other input parameters. If the file exists,
+            then it will be either read in or recreated, depending on the recalc parameter. By default, the DPIs are
+            placed in the dpi/ directory unless a Path object is passed in with an absolute filepath.
+        :param tstart: astropy.units.Quantity denoting the minimum values of the timebin edges that the user would like
+            the DPI to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
+            If the length of tstart is 1 then this denotes the time when the binned lightcurve should start. For this single
+            value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
+            should be True.
+        :param tstop: astropy.units.Quantity denoting the maximum values of the timebin edges that the user would like
+            the DPI to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
+            If the length of tstop is 1 then this denotes the time when the binned lightcurve should end. For this single
+            value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
+            should be True.
+        :param timebins: astropy.units.Quantity denoting the array of time bin edges. Units will usually be in seconds
+            for this. The values can be relative to the specified T0. If so, then the T0 needs to be specified and
+            the is_relative parameter should be True.
+        :param T0: float or an astropy.units.Quantity object with some time of interest (eg trigger time)
+        :param is_relative: Boolean switch denoting if the T0 that is passed in should be added to the
+            timebins/tstart/tstop that were passed in.
+        :param energybins: astropy.units.Quantity denoting the energy bin edges for the DPI that will be produced. None
+            sets the default energy binning to be 14-195 keV
+        :param recalc: Boolean to denote if the DPH specified by dph_file should be recalculated with the
+            specified time/energy binning. See the BatDPH class for a list of these defaults.
+        :return: BatDPI object or a list of BatDPI objects
         """
 
-        raise NotImplementedError("Creating the DPI has not yet been implemented.")
+        dpi_dir = self.result_dir.joinpath("dpi")
+        nchannels = len(energybins) - 1
 
-        return None
+        input_tstart = None
+        input_tstop = None
+        # if the timebins is defined, will need to break it up into the tstart and tstop arrays to iterate over
+        # if tstart/tstop are specified we will prefer to use those
+        if timebins is not None:
+            input_tstart = timebins[:-1]
+            input_tstop = timebins[1:]
+        # do error checking on tmin/tmax make sure both are defined and that they are the same length
+        if (tstart is None and tstop is not None) or (
+                tstart is None and tstop is not None
+        ):
+            raise ValueError("Both tstart and tstop must be defined.")
+        if tstart is not None and tstop is not None:
+            if tstart.size == tstop.size:
+                input_tstart = tstart.copy()
+                input_tstop = tstop.copy()
+            # make sure that we can iterate over the times even if the user passed in a single scalar quantity
+            if input_tstart.isscalar:
+                input_tstart = u.Quantity([input_tstart])
+                input_tstop = u.Quantity([input_tstop])
+            else:
+                raise ValueError("Both tstart and tstop must have the same length.")
 
-    def create_sky_image(self, **kwargs):
+        if dpi_file is None:
+            # construct the template names
+            dpi_filename = []
+            if input_tstop is not None:
+                for start, end in zip(input_tstart, input_tstop):
+                    if isinstance(T0, u.Quantity):
+                        s = (start + T0).min().value
+                        e = (end + T0).max().value
+                    else:
+                        s = start.min().value + T0
+                        e = end.max().value + T0
+
+                    # make sure that the timebin does not extend past the min/max event data time
+                    if s < self.data.time.min().value or e > self.data.time.max().value:
+                        raise ValueError(
+                            f"The bounds of the timebin {s}-{e} extend past the min/max event time in the event file.")
+
+                    dpi_filename.append(Path(f"t_{s}-{e}_{nchannels}chan.dpi"))
+            else:
+                start = "start"
+                end = "end"
+                input_tstart = np.array([None])
+                input_tstop = np.array([None])
+
+                dpi_filename.append(Path(f"t_{start}-{end}_{nchannels}chan.dpi"))
+
+        else:
+            if type(dpi_file) is list:
+                dpi_filename = dpi_file
+            else:
+                dpi_filename = [dpi_file]
+
+        final_dpi_files = [
+            dpi_dir.joinpath(f"{i}")
+            if not Path(i).is_absolute()
+            else Path(i).expanduser().resolve()
+            for i in dpi_filename
+        ]
+
+        dpi_list = []
+        for start, end, file in zip(input_tstart, input_tstop, final_dpi_files):
+            # if the file exists and recalc=False, just load it in and return it. Dont need to add it to the list of
+            # dphs via the self.dphs property
+            do_t_energy_calc = not (file.exists() and not recalc)
+
+            dpi = BatDPI(file, event_file=self.event_files,
+                         detector_quality_file=self.detector_quality_file, recalc=recalc)
+
+            if do_t_energy_calc:
+                dpi.set_timebins(tmin=start, tmax=end, is_relative=is_relative, T0=T0)
+                if energybins is not None:
+                    dpi.set_energybins(energybins=energybins)
+
+                self.dpis = dpi
+
+            dpi_list.append(dpi)
+
+        if len(dpi_list) == 1:
+            return dpi_list[0]
+        else:
+            return dpi_list
+
+    def create_skyview(self,
+                       dpis=None,
+                       tstart=None,
+                       tstop=None,
+                       timebins=None,
+                       T0=None,
+                       is_relative=False,
+                       energybins=[15, 350] * u.keV,
+                       recalc=False,
+                       ):
         """
-        This method returns a sky image
+        This method returns a sky view for all the DPIs that have been specified. If no DPIs
+        have been created which correspond to the input times/energies then this method will create them and then produce
+        a BatSkyView object for all the DPIs.
 
-        :param kwargs:
-        :return:
+        Any newly created BatSkyView objects are saved to the skyviews property where they are stored in order based on their
+        creation. If a BatSkyView is loaded, then the BatSkyView will not be saved to the skyviews property by default. If
+        a user wants to do so they can set the loaded BatSkyView to the skyviews property (ie self.skyviews = loaded_skyview).
+
+
+        :param dpis: None, a BatDPI object, or a list of BatDPI objects that will be used to produce the BatSkyView object(s)
+        :param tstart: astropy.units.Quantity denoting the minimum values of the timebin edges that the user would like
+            the DPI and resulting skyview to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
+            If the length of tstart is 1 then this denotes the time when the binned lightcurve should start. For this single
+            value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
+            should be True.
+        :param tstop: astropy.units.Quantity denoting the maximum values of the timebin edges that the user would like
+            the DPI and resulting skyview to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if tstart/tstop are specified then anything passed to the timebins parameter is ignored.
+
+            If the length of tstop is 1 then this denotes the time when the binned lightcurve should end. For this single
+            value, it can also be defined relative to T0. If so, then the T0 needs to be specified and the is_relative parameter
+            should be True.
+        :param timebins: astropy.units.Quantity denoting the array of time bin edges. Units will usually be in seconds
+            for this. The values can be relative to the specified T0. If so, then the T0 needs to be specified and
+            the is_relative parameter should be True.
+        :param T0: float or an astropy.units.Quantity object with some time of interest (eg trigger time)
+        :param is_relative: Boolean switch denoting if the T0 that is passed in should be added to the
+            timebins/tstart/tstop that were passed in.
+        :param energybins: astropy.units.Quantity denoting the energy bin edges for the DPH that will be produced. None
+            sets the default energy binning to be 14-195 keV
+        :param recalc: Boolean to denote if the DPH specified by dph_file should be recalculated with the
+            specified time/energy binning. See the BatDPH class for a list of these defaults.
+        :return: BatSkyView object or a list of BatSkyView objects
         """
 
-        raise NotImplementedError(
-            "Creating the sky image has not yet been implemented."
-        )
+        skyview_dir = self.result_dir.joinpath("img")
 
-        return None
+        # make the directory if it doesnt exist, if it does then we are fine. This is done here because users dont
+        # usually create sky images with the event file but this creates a subdirectory to put them in  if a user wants to
+        # do so
+        skyview_dir.mkdir(exist_ok=True)
+
+        # if dpis is None, we need to create/load the DPI(s) from the other parameters passed in
+        if dpis is None:
+            dpi_output = self.create_dpi(tstart=tstart, tstop=tstop, timebins=timebins, T0=T0, is_relative=is_relative,
+                                         energybins=energybins, recalc=recalc)
+            # make sure we have a list
+            if not isinstance(dpi_output, list):
+                dpi_output = [dpi_output]
+        else:
+            if not isinstance(dpis, list):
+                dpi_output = [dpis]
+            else:
+                dpi_output = dpis
+
+            if np.any([not isinstance(i, BatDPI) for i in dpi_output]):
+                raise ValueError(
+                    "dpi can only be set to a BatDPI object or a list of BatDPI objects.")
+
+        # we have created/loaded the necessary information to now create the BatSkyView objects
+        skyviews_list = []
+        for dpi in dpi_output:
+            # create the name of the skyview files since we want them to be in the
+            # img folder
+            skyview_file = skyview_dir.joinpath(f"{dpi.dpi_file.stem}.img")
+
+            # determine if we need to save this object to the skyviews property
+            # if the file exists and recalc=False, just load it in and return it. Dont need to add it to the list of
+            # skyviews via the self.skyviews property
+            save_property = not (skyview_file.exists() and not recalc)
+
+            skyview = BatSkyView(skyimg_file=skyview_file, bat_dpi=dpi, attitude_file=self.attitude_file,
+                                 create_bkg_stddev_img=True,
+                                 create_snr_img=True, recalc=recalc)
+
+            if save_property:
+                self.skyviews = skyview
+
+            skyviews_list.append(skyview)
+
+        if len(skyviews_list) == 1:
+            return skyviews_list[0]
+        else:
+            return skyviews_list
+
+    @property
+    def spectra(self):
+        """A list of spectrum objects that have been created from the event object"""
+        return self._spectra
+
+    @spectra.setter
+    def spectra(self, value):
+        if value is None:
+            self._spectra = value
+        elif isinstance(value, Spectrum):
+            if self._spectra is None:
+                self._spectra = []
+            self._spectra.append(value)
+        elif isinstance(value, list):
+            if len(value) > 0:
+                raise ValueError(
+                    "The spectra property can only be set to None, an empty list, or have a Spectrum object appended to it.")
+            self._spectra = value
+        else:
+            raise ValueError(
+                "The spectra property can only be set to None, an empty list, or have a Spectrum object appended to it.")
+
+    @property
+    def lightcurves(self):
+        """A list of lightcurve objects that have been created from the event file"""
+        return self._lightcurves
+
+    @lightcurves.setter
+    def lightcurves(self, value):
+        if value is None:
+            self._lightcurves = value
+        elif isinstance(value, Lightcurve):
+            if self._lightcurves is None:
+                self._lightcurves = []
+            self._lightcurves.append(value)
+        elif isinstance(value, list):
+            if len(value) > 0:
+                raise ValueError(
+                    "The lightcurves property can only be set to None, an empty list, or have a Lightcurve object appended to it.")
+            self._lightcurves = value
+        else:
+            raise ValueError(
+                "The lightcurves property can only be set to None, an empty list, or have a Lightcurve object appended to it.")
+
+    @property
+    def dphs(self):
+        """A list of DPH objects that have been created from the event file"""
+        return self._dphs
+
+    @dphs.setter
+    def dphs(self, value):
+        if value is None:
+            self._dphs = value
+        elif isinstance(value, BatDPH):
+            if self._dphs is None:
+                self._dphs = []
+            self._dphs.append(value)
+        elif isinstance(value, list):
+            if len(value) > 0:
+                raise ValueError(
+                    "The dphs property can only be set to None, an empty list, or have a BatDPH object appended to it.")
+            self._dphs = value
+        else:
+            raise ValueError(
+                "The dphs property can only be set to None, an empty list, or have a BatDPH object appended to it.")
+
+    @property
+    def dpis(self):
+        """A list of DPI objects that have been created from the event file"""
+        return self._dpis
+
+    @dpis.setter
+    def dpis(self, value):
+        if value is None:
+            self._dpis = value
+        elif isinstance(value, BatDPI):
+            if self._dpis is None:
+                self._dpis = []
+            self._dpis.append(value)
+        elif isinstance(value, list):
+            if len(value) > 0:
+                raise ValueError(
+                    "The dpis property can only be set to None, an empty list, or have a BatDPI object appended to it.")
+            self._dpis = value
+        else:
+            raise ValueError(
+                "The dpis property can only be set to None, an empty list, or have a BatDPI object appended to it.")
+
+    @property
+    def skyviews(self):
+        """A list of BatSkyView objects that have been created from the event file"""
+        return self._skyviews
+
+    @skyviews.setter
+    def skyviews(self, value):
+        if value is None:
+            self._skyviews = value
+        elif isinstance(value, BatSkyView):
+            if self._skyviews is None:
+                self._skyviews = []
+            self._skyviews.append(value)
+        elif isinstance(value, list):
+            if len(value) > 0:
+                raise ValueError(
+                    "The skyviews property can only be set to None, an empty list, or have a BatSkyView object appended to it.")
+            self._skyviews = value
+        else:
+            raise ValueError(
+                "The skyviews property can only be set to None, an empty list, or have a BatSkyView object appended to it.")

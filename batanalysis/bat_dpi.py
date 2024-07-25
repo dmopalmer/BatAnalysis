@@ -13,6 +13,7 @@ import astropy.units as u
 import numpy as np
 from astropy.io import fits
 
+from .batlib import create_gti_file
 from .detectorplanehist import DetectorPlaneHistogram
 
 try:
@@ -29,13 +30,16 @@ class BatDPI(DetectorPlaneHistogram):
 
     This can also be constructed by batbinevt which this class handles. There can be multiple DPIs extensions in a file
     or there can be a table with multiple DPIs
+
+    TODO: for images with exposures>100 seconds, should also create a background DPI see section 5.8.5 of
+        https://swift.gsfc.nasa.gov/analysis/bat_swguide_v6_3.pdf
     """
 
     def __init__(
             self,
             dpi_file=None,
             event_file=None,
-            detector_quality_mask=None,
+            detector_quality_file=None,
             event_data=None,
             input_dict=None,
             recalc=False,
@@ -52,9 +56,9 @@ class BatDPI(DetectorPlaneHistogram):
         :param dpi_file: None or a pathlib Path object for the full path to a DPI file that will be created with a call
             to heasoftpy batbinevt.
         :param event_file: None or path object of the event file that will be rebinned in a call to heasoftpy batbinevt
-        :param detector_quality_mask: Path object for the detector quality mask that was constructed for the associated
+        :param detector_quality_file: Path object for the detector quality mask that was constructed for the associated
             event file
-        :param event_data: None or Event data dictionary or event data class (to be created)
+        :param event_data: None or TimeTaggedEvents class that has been initialized with event data
         :param input_dict: None or a dict of values that will be passed to batbinevt in the creation of the DPI.
             If a DPI is being read in from one that was previously created, the prior parameters that were used to
             calculate the DPI will be read in.
@@ -78,8 +82,8 @@ class BatDPI(DetectorPlaneHistogram):
         :param load_dir: Path of the directory that holds the DPI file that will be loaded in
         :param tmin: None or an astropy Quantity array of the beginning timebin edges
         :param tmax: None or an astropy Quantity array of the end timebin edges
-        :param emin: None or an or an astropy Quantity array of the beginning of the energy bins
-        :param emax: None or an or an astropy Quantity array of the end of the energy bins
+        :param emin: None or an astropy Quantity array of the beginning of the energy bins
+        :param emax: None or an astropy Quantity array of the end of the energy bins
         """
 
         if dpi_file is not None:
@@ -103,13 +107,13 @@ class BatDPI(DetectorPlaneHistogram):
                     stacklevel=2,
                 )
 
-        if detector_quality_mask is not None:
-            self.detector_quality_mask = Path(detector_quality_mask).expanduser().resolve()
-            if not self.detector_quality_mask.exists():
-                raise ValueError(f"The specified detector quality mask file {self.detector_quality_mask} does not seem "
+        if detector_quality_file is not None:
+            self.detector_quality_file = Path(detector_quality_file).expanduser().resolve()
+            if not self.detector_quality_file.exists():
+                raise ValueError(f"The specified detector quality mask file {self.detector_quality_file} does not seem "
                                  f"to exist. Please double check that it does.")
         else:
-            self.detector_quality_mask = None
+            self.detector_quality_file = None
             # warnings.warn("No detector quality mask file has been specified. The resulting DPI object "
             #              "will not be able to be modified either by rebinning in energy or time.", stacklevel=2)
 
@@ -123,7 +127,7 @@ class BatDPI(DetectorPlaneHistogram):
                     self.dpi_input_dict = dict(
                         infile=str(self.event_file),
                         outfile=str(self.dpi_file),
-                        detmask=str(self.detector_quality_mask),
+                        detmask=str(self.detector_quality_file),
                         outtype="DPI",
                         energybins="14-195",
                         weighted="NO",
@@ -401,10 +405,13 @@ class BatDPI(DetectorPlaneHistogram):
         """
 
         NOTE: This is copied from the BatDPH class, this can be done better
-        :param energybins:
-        :param emin:
-        :param emax:
-        :return:
+        :param energybins: astropy Quantity object outlining the energy bin edges that the DPI will be binned into
+        :param emin: an astropy.unit.Quantity object of 1 or more elements. These are the minimum edges of the
+            energy bins that the user would like. NOTE: If emin/emax are specified, the energybins parameter is ignored.
+        :param emax: an astropy.unit.Quantity object of 1 or more elements. These are the maximum edges of the
+            energy bins that the user would like. It shoudl have the same number of elements as emin.
+            NOTE: If emin/emax are specified, the energybins parameter is ignored.
+        :return: None
         """
 
         if self.event_file is None:
@@ -459,7 +466,7 @@ class BatDPI(DetectorPlaneHistogram):
 
                 # make sure that the dph_return was successful
                 if dpi_return.returncode != 0:
-                    raise RuntimeError(f'The creation of the DPI failed with message: {dph_return.output}')
+                    raise RuntimeError(f'The creation of the DPI failed with message: {dpi_return.output}')
                 else:
                     self.bat_dpi_result = dpi_return
                     self.dpi_input_dict = tmp_dpi_input_dict
@@ -478,14 +485,39 @@ class BatDPI(DetectorPlaneHistogram):
 
     @u.quantity_input(timebins=["time"], tmin=["time"], tmax=["time"])
     def set_timebins(self, timebins=None, tmin=None, tmax=None, timebinalg="uniform", T0=None, is_relative=False,
-                     timedelta=np.timedelta64(1, 's')):
+                     timedelta=np.timedelta64(0, 's')):
         """
+        This method allows for the dynamic rebinning of the DPI in time.
+
         NOTE: This is copied from the BatDPH class, this can be done better
 
-        :param timebins:
-        :param tmin:
-        :param tmax:
-        :return:
+        :param timebins: astropy.units.Quantity denoting the array of time bin edges. Units will usually be in seconds
+            for this. The values can be relative to the specified T0. If so, then the T0 needs to be specified and
+            the is_relative parameter should be True. If this parameter is passed in, then it supercedes the values of
+            tmin and tmax.
+        :param tmin: astropy.units.Quantity denoting the minimum values of the timebin edges that the user would like
+            the DPI to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if the timebins parameter is passed in then anything passed into tmin/tmax is ignored
+        :param tmax: astropy.units.Quantity denoting the maximum values of the timebin edges that the user would like
+            the DPI to be binned into. Units will usually be in seconds for this. The values can be relative to
+            the specified T0. If so, then the T0 needs to be specified and the is_relative parameter should be True.
+            NOTE: if the timebins parameter is passed in then anything passed into tmin/tmax is ignored
+        :param timebinalg: string that can be "uniform or "snr" to specify the type of timebinning algorithm we may want
+            to specify for batbinevt (see related documentation: https://heasarc.gsfc.nasa.gov/ftools/caldb/help/batbinevt.html)
+            This is only relevant if the user  does not pass in any values for the timebins/tmin/tmax parameters.
+            In this case, the method will bin the DPIs starting from the start time of the event file to the end time
+            in the event file in time bin widths correspondent to the timedelta parameter below.
+            In the case where tmin/tmax is specified and they are single values, the default behavior is to create a
+            single DPI that is collected over the time interval specified by tmin/tmax.
+        :param T0: float or an astropy.units.Quantity object with some time of interest (eg trigger time)
+        :param is_relative: Boolean switch denoting if the T0 that is passed in should be added to the
+            timebins/tmin/tmax that were passed in.
+        :param timedelta: a numpy timedelta object that specifies the uniform/snr timebinning that may be used
+            if the timebinalg parameter is passed to batbinevt. The default value of timebin=np.timedelta64(0, "s")
+            accumulates the whole event dataset into a single DPI.
+        :return: None
+
         """
 
         if type(is_relative) is not bool:
@@ -595,7 +627,7 @@ class BatDPI(DetectorPlaneHistogram):
 
             # make sure that the dph_return was successful
             if dpi_return.returncode != 0:
-                raise RuntimeError(f'The creation of the DPI failed with message: {dph_return.output}')
+                raise RuntimeError(f'The creation of the DPI failed with message: {dpi_return.output}')
             else:
                 self.bat_dpi_result = dpi_return
                 self.dpi_input_dict = tmp_dpi_input_dict
@@ -635,8 +667,8 @@ class BatDPI(DetectorPlaneHistogram):
     def _create_custom_timebins(self, timebins, output_file=None):
         """
         This method creates custom time bins from a user defined set of time bin edges. The created fits file with the
-        timebins of interest will by default have the same name as the dpi file, however it will have a "gti" suffix instead of
-        a "dpi" suffix and it will be stored in the gti subdirectory of the event results directory.
+        timebins of interest will by default have the same name as the dpi file, however it will have a "gti" suffix
+        instead of a "dpi" suffix and it will be stored in the gti subdirectory of the event results directory.
 
         Note: This method is here so the call to create a gti file with custom timebins can be phased out eventually.
         NOTE: This is copied from the BatDPH class, this can be done better
