@@ -1,3 +1,5 @@
+import os
+
 __all__ = [
     "batobservation",
     "batproducts",
