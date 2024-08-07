@@ -4,6 +4,7 @@ batfftimage (flux sky image, background variation map, partial coding map).
 
 Tyler Parsotan May 15 2024
 """
+
 import warnings
 from copy import deepcopy
 from pathlib import Path
@@ -35,23 +36,23 @@ class BatSkyView(object):
     """
 
     def __init__(
-            self,
-            skyimg_file=None,
-            bat_dpi=None,
-            attitude_file=None,
-            input_dict=None,
-            recalc=False,
-            load_dir=None,
-            create_pcode_img=True,
-            create_snr_img=False,
-            create_bkg_stddev_img=False,
-            # sky_img=None,
-            # bkg_stddev_img=None,
-            # snr_img=None,
-            interim_sky_img=None,
-            interim_var_img=None,
-            pcode_img=None,
-            exposure_img=None
+        self,
+        skyimg_file=None,
+        bat_dpi=None,
+        attitude_file=None,
+        input_dict=None,
+        recalc=False,
+        load_dir=None,
+        create_pcode_img=True,
+        create_snr_img=False,
+        create_bkg_stddev_img=False,
+        # sky_img=None,
+        # bkg_stddev_img=None,
+        # snr_img=None,
+        interim_sky_img=None,
+        interim_var_img=None,
+        pcode_img=None,
+        exposure_img=None,
     ):
         """
         A sky view object contains various sky images that are associated with a view of the sky in a single timebin.
@@ -124,19 +125,35 @@ class BatSkyView(object):
         # images, then raise an error.
 
         # if all necessary inputs for a mosaic image are None, then is_mosaic=False
-        self.is_mosaic = not np.all([i is None for i in [interim_sky_img, interim_var_img, pcode_img, exposure_img]])
+        self.is_mosaic = not np.all(
+            [
+                i is None
+                for i in [interim_sky_img, interim_var_img, pcode_img, exposure_img]
+            ]
+        )
         if self.is_mosaic:
             # if is_mosac is True, this can mean that at least one of the parameters passed in is not None,
             # need to check if any are None now. If there are any that are None, throw an error b/c user needs to pass
             # all images in. also make sure that they are all BaSkyImage objects
-            if np.any([i is None for i in [interim_sky_img, interim_var_img, pcode_img, exposure_img]]):
+            if np.any(
+                [
+                    i is None
+                    for i in [interim_sky_img, interim_var_img, pcode_img, exposure_img]
+                ]
+            ):
                 raise ValueError(
-                    "To properly create a BatSkyView from mosaics, the intermediate sky flux, background variance, partial coding vignette, and exposure images need to be passed in.")
+                    "To properly create a BatSkyView from mosaics, the intermediate sky flux, background variance, partial coding vignette, and exposure images need to be passed in."
+                )
 
-            if np.any([not isinstance(i, BatSkyImage) for i in
-                       [interim_sky_img, interim_var_img, pcode_img, exposure_img]]):
+            if np.any(
+                [
+                    not isinstance(i, BatSkyImage)
+                    for i in [interim_sky_img, interim_var_img, pcode_img, exposure_img]
+                ]
+            ):
                 raise ValueError(
-                    "To properly create a BatSkyView from mosaics, the intermediate sky flux, background variance, partial coding vignette, and exposure images all need to be BatSkyImage objects.")
+                    "To properly create a BatSkyView from mosaics, the intermediate sky flux, background variance, partial coding vignette, and exposure images all need to be BatSkyImage objects."
+                )
 
         # if self.is_mosaic is true, we dont care about the stuff related to creating a sky image from a DPI
         if not self.is_mosaic:
@@ -144,7 +161,9 @@ class BatSkyView(object):
             # make sure we have the correct object for bat_dpi
             if bat_dpi is not None:
                 if not isinstance(bat_dpi, BatDPI):
-                    raise ValueError("The input to the bat_dpi parameter must be a BatDPI object. ")
+                    raise ValueError(
+                        "The input to the bat_dpi parameter must be a BatDPI object. "
+                    )
 
             # if the user specified a sky image then use it, otherwise set the sky image to be the same name as the dpi
             # and same location
@@ -154,36 +173,46 @@ class BatSkyView(object):
             else:
                 # make sure that we can define the output sky image filename
                 if bat_dpi.dpi_file is not None:
-                    self.skyimg_file = bat_dpi.dpi_file.parent.joinpath(f"{bat_dpi.dpi_file.stem}.img")
+                    self.skyimg_file = bat_dpi.dpi_file.parent.joinpath(
+                        f"{bat_dpi.dpi_file.stem}.img"
+                    )
                 else:
                     raise ValueError(
-                        "The BatDPI object passed to bat_dpi must have the dpi_file attribute defined to create the sky image from.")
+                        "The BatDPI object passed to bat_dpi must have the dpi_file attribute defined to create the sky image from."
+                    )
 
             if bat_dpi.dpi_file is not None:
                 self.dpi_file = Path(bat_dpi.dpi_file).expanduser().resolve()
                 if not self.dpi_file.exists():
                     raise ValueError(
                         f"The specified DPI file {self.dpi_file} does not seem "
-                        f"to exist. Please double check that it does.")
+                        f"to exist. Please double check that it does."
+                    )
             else:
                 # the user could have passed in just a sky image that was previously created and then the dpi file doesnt
                 # need to be passed in
                 self.dpi_file = None
                 if not self.skyimg_file.exists() or recalc:
                     raise ValueError(
-                        "The BatDPI object passed to bat_dpi must have the dpi_file attribute defined to create the sky image from.")
+                        "The BatDPI object passed to bat_dpi must have the dpi_file attribute defined to create the sky image from."
+                    )
 
             if bat_dpi.detector_quality_file is not None:
-                self.detector_quality_file = Path(bat_dpi.detector_quality_file).expanduser().resolve()
+                self.detector_quality_file = (
+                    Path(bat_dpi.detector_quality_file).expanduser().resolve()
+                )
                 if not self.detector_quality_file.exists():
                     raise ValueError(
                         f"The specified detector quality mask file {self.detector_quality_file} does not seem "
-                        f"to exist. Please double check that it does.")
+                        f"to exist. Please double check that it does."
+                    )
             else:
                 self.detector_quality_file = None
                 warnings.warn(
                     "No detector quality mask file has been specified. Sky images will be constructed assuming "
-                    "that all detectors are on.", stacklevel=2)
+                    "that all detectors are on.",
+                    stacklevel=2,
+                )
 
             # make sure that we have an attitude file (technically we dont need it for batfft, but for BatSkyImage object
             # we do)
@@ -192,10 +221,13 @@ class BatSkyView(object):
                 if not self.attitude_file.exists():
                     raise ValueError(
                         f"The specified attitude file {self.attitude_file} does not seem "
-                        f"to exist. Please double check that it does.")
+                        f"to exist. Please double check that it does."
+                    )
             else:
                 if not self.skyimg_file.exists() or recalc:
-                    raise ValueError("Please specify an attitude file associated with the DPI.")
+                    raise ValueError(
+                        "Please specify an attitude file associated with the DPI."
+                    )
 
             # get the default names of the parameters for batfftimage including its name (which should never change)
             test = hsp.HSPTask("batfftimage")
@@ -215,14 +247,16 @@ class BatSkyView(object):
 
                 if create_bkg_stddev_img:
                     self.bkg_stddev_img_file = self.skyimg_file.parent.joinpath(
-                        f"{self.dpi_file.stem}_bkg_stddev.img")
+                        f"{self.dpi_file.stem}_bkg_stddev.img"
+                    )
                     self.skyimg_input_dict["bkgvarmap"] = str(self.bkg_stddev_img_file)
                 else:
                     self.bkg_stddev_img_file = None
 
                 if create_snr_img:
                     self.snr_img_file = self.skyimg_file.parent.joinpath(
-                        f"{self.dpi_file.stem}_snr.img")
+                        f"{self.dpi_file.stem}_snr.img"
+                    )
                     self.skyimg_input_dict["signifmap"] = str(self.snr_img_file)
                 else:
                     self.snr_img_file = None
@@ -245,7 +279,8 @@ class BatSkyView(object):
                 # pcode map that will be able to be passed into batcelldetect
                 if create_pcode_img:
                     temp_pcodeimg_file = self.skyimg_file.parent.joinpath(
-                        f"{self.dpi_file.stem}.pcodeimg")
+                        f"{self.dpi_file.stem}.pcodeimg"
+                    )
                     pcodeimg_input_dict = self.skyimg_input_dict.copy()
                     pcodeimg_input_dict["pcodemap"] = "YES"
                     pcodeimg_input_dict["outfile"] = str(temp_pcodeimg_file)
@@ -253,7 +288,9 @@ class BatSkyView(object):
                     pcodeimg_input_dict["bkgvarmap"] = "NONE"
                     pcodeimg_input_dict["signifmap"] = "NONE"
 
-                    batfftimage_pcode_result = self._call_batfftimage(pcodeimg_input_dict)
+                    batfftimage_pcode_result = self._call_batfftimage(
+                        pcodeimg_input_dict
+                    )
 
                     # make sure that this calculation ran successfully
                     if batfftimage_pcode_result.returncode != 0:
@@ -337,8 +374,9 @@ class BatSkyView(object):
         # make sure that the skyimage exists
         if not self.skyimg_file.exists():
             raise ValueError(
-                f'The sky image file {self.skyimg_file} does not seem to exist. An error must have occured '
-                f'in the creation of this file.')
+                f"The sky image file {self.skyimg_file} does not seem to exist. An error must have occured "
+                f"in the creation of this file."
+            )
 
         # read in the skyimage file and create a SkyImage object. Note that the BatSkyImage.from_file() method
         # read in the first N hdus in the file where N is the number of energy bins that sky images were created for
@@ -373,7 +411,7 @@ class BatSkyView(object):
                     if "=" not in values:
                         # this belongs with the previous parameter and is a line continuation
                         default_params_dict[old_parameter] = (
-                                default_params_dict[old_parameter] + values[-1]
+                            default_params_dict[old_parameter] + values[-1]
                         )
                         # assume that we need to keep appending to the previous parameter
                     else:
@@ -391,7 +429,8 @@ class BatSkyView(object):
         else:
             # see if we can guess the partial coding file's name and see if it exists
             temp_pcodeimg_file = self.skyimg_file.parent.joinpath(
-                f"{self.skyimg_file.stem}.pcodeimg")
+                f"{self.skyimg_file.stem}.pcodeimg"
+            )
             if temp_pcodeimg_file.exists():
                 self.pcodeimg_file = temp_pcodeimg_file
                 self.pcode_img = BatSkyImage.from_file(self.pcodeimg_file)
@@ -402,14 +441,18 @@ class BatSkyView(object):
             # do the time check
             for i in self.pcode_img.tbins.keys():
                 if self.pcode_img.tbins[i] != self.sky_img.tbins[i]:
-                    raise ValueError("The timebin of the partial coding image does not align with the sky image."
-                                     f"for {i} {self.pcode_img.tbins[i]} != {self.sky_img.tbins[i]}.")
+                    raise ValueError(
+                        "The timebin of the partial coding image does not align with the sky image."
+                        f"for {i} {self.pcode_img.tbins[i]} != {self.sky_img.tbins[i]}."
+                    )
 
         # see if there are background/snr images for us to read in
         # this can be defined in the history of the batfftimage call or in the constructor method
         # we prioritize anything that was set in the constructor
         if self.snr_img_file is None and self.skyimg_input_dict["signifmap"] != "NONE":
-            self.snr_img_file = Path(self.skyimg_input_dict["signifmap"]).expanduser().resolve()
+            self.snr_img_file = (
+                Path(self.skyimg_input_dict["signifmap"]).expanduser().resolve()
+            )
 
         # now read in the file
         if self.snr_img_file is not None:
@@ -417,8 +460,13 @@ class BatSkyView(object):
         else:
             self.snr_img = None
 
-        if self.bkg_stddev_img_file is None and self.skyimg_input_dict["bkgvarmap"] != "NONE":
-            self.bkg_stddev_img_file = Path(self.skyimg_input_dict["bkgvarmap"]).expanduser().resolve()
+        if (
+            self.bkg_stddev_img_file is None
+            and self.skyimg_input_dict["bkgvarmap"] != "NONE"
+        ):
+            self.bkg_stddev_img_file = (
+                Path(self.skyimg_input_dict["bkgvarmap"]).expanduser().resolve()
+            )
 
         # now read in the file
         if self.bkg_stddev_img_file is not None:
@@ -465,7 +513,9 @@ class BatSkyView(object):
         # we will be using the "traditional" sky facets, while "healpix" means that we will be projecting everything
         # onto the healpix map
         if value is not None and "healpix" not in value:
-            raise ValueError("The projection attribute can only be set to None or healpix.")
+            raise ValueError(
+                "The projection attribute can only be set to None or healpix."
+            )
 
         self._projection = value
 
@@ -484,7 +534,9 @@ class BatSkyView(object):
         # need to make sure that the projection is actually set to healpix for this attribute to mean anything
         # when it is set, it defines the healpix map resolution that the sky images will be projected to and then added
         if self.projection is not None and "healpix" not in self.projection:
-            raise ValueError("The projection attribute needs to be set to healpix before healpix_nside can be set.")
+            raise ValueError(
+                "The projection attribute needs to be set to healpix before healpix_nside can be set."
+            )
 
         self._healpix_nside = value
 
@@ -503,7 +555,9 @@ class BatSkyView(object):
         # need to make sure that the projection is actually set to healpix for this attribute to mean anything
         # when this is set, it will define the coordinate system of the healpix map
         if self.projection is not None and "healpix" not in self.projection:
-            raise ValueError("The projection attribute needs to be set to healpix before healpix_coordsys can be set.")
+            raise ValueError(
+                "The projection attribute needs to be set to healpix before healpix_coordsys can be set."
+            )
 
         self._healpix_coordsys = value
 
@@ -553,8 +607,10 @@ class BatSkyView(object):
 
         # need the pcode file
         if self.pcodeimg_file is None:
-            raise ValueError("Please specify a partial coding file associated with the sky image in order to conduct "
-                             "source detection.")
+            raise ValueError(
+                "Please specify a partial coding file associated with the sky image in order to conduct "
+                "source detection."
+            )
 
         # use the default catalog is none is specified
         if catalog_file is None:
@@ -570,8 +626,12 @@ class BatSkyView(object):
 
         # fill in defaults, which can be overwritten if values are passed into the input_dict parameter
         self.src_detect_input_dict = default_params_dict
-        self.src_detect_input_dict["outfile"] = self.skyimg_file.parent.joinpath(f"{self.skyimg_file.stem}.cat")
-        self.src_detect_input_dict["regionfile"] = self.skyimg_file.parent.joinpath(f"{self.skyimg_file.stem}.reg")
+        self.src_detect_input_dict["outfile"] = self.skyimg_file.parent.joinpath(
+            f"{self.skyimg_file.stem}.cat"
+        )
+        self.src_detect_input_dict["regionfile"] = self.skyimg_file.parent.joinpath(
+            f"{self.skyimg_file.stem}.reg"
+        )
 
         self.src_detect_input_dict["infile"] = str(self.skyimg_file)
         self.src_detect_input_dict["incatalog"] = str(catalog_file)
@@ -605,7 +665,10 @@ class BatSkyView(object):
         :return: BatSkyImage
         """
         if self.is_mosaic:
-            return BatSkyImage(image_data=self.interim_sky_img / self.interim_var_img, image_type="flux")
+            return BatSkyImage(
+                image_data=self.interim_sky_img / self.interim_var_img,
+                image_type="flux",
+            )
         else:
             return self._sky_img
 
@@ -626,8 +689,13 @@ class BatSkyView(object):
 
         if self.is_mosaic:
             return BatSkyImage(
-                image_data=Histogram(self.interim_var_img.axes, contents=1 / np.sqrt(self.interim_var_img),
-                                     unit=np.sqrt(1 / self.interim_var_img.unit).unit), image_type="stddev")
+                image_data=Histogram(
+                    self.interim_var_img.axes,
+                    contents=1 / np.sqrt(self.interim_var_img),
+                    unit=np.sqrt(1 / self.interim_var_img.unit).unit,
+                ),
+                image_type="stddev",
+            )
         else:
             return self._bkg_stddev_img
 
@@ -647,7 +715,9 @@ class BatSkyView(object):
         """
 
         if self.is_mosaic:
-            return BatSkyImage(image_data=self.sky_img / self.bkg_stddev_img, image_type="snr")
+            return BatSkyImage(
+                image_data=self.sky_img / self.bkg_stddev_img, image_type="snr"
+            )
         else:
             return self._snr_img
 
@@ -676,17 +746,25 @@ class BatSkyView(object):
             return NotImplemented
 
             # make sure we also have the same energy bins
-        if not np.array_equal(self.sky_img.ebins["E_MIN"], other.sky_img.ebins["E_MIN"]) or not np.array_equal(
-                self.sky_img.ebins["E_MAX"], other.sky_img.ebins["E_MAX"]):
-            raise ValueError('Ensure that the two BatSkyView objects have the same energy ranges. ')
+        if not np.array_equal(
+            self.sky_img.ebins["E_MIN"], other.sky_img.ebins["E_MIN"]
+        ) or not np.array_equal(
+            self.sky_img.ebins["E_MAX"], other.sky_img.ebins["E_MAX"]
+        ):
+            raise ValueError(
+                "Ensure that the two BatSkyView objects have the same energy ranges. "
+            )
 
         # make sure that both have background stddev and pcode images
         if None in self.pcode_img or None in other.pcode_img:
-            raise ValueError('All BatSkyView objects need to have an associated partial coding image to be added')
+            raise ValueError(
+                "All BatSkyView objects need to have an associated partial coding image to be added"
+            )
 
         if None in self.bkg_stddev_img or None in other.bkg_stddev_img:
             raise ValueError(
-                'All BatSkyView objects need to have an associated background standard deviation image to be added')
+                "All BatSkyView objects need to have an associated background standard deviation image to be added"
+            )
 
         if self.projection is not None:
             # we are using the healpix projection to add images, need to get the greater value of healpix_nside and verify that both objects arent None
@@ -727,17 +805,22 @@ class BatSkyView(object):
                 # all the associated inverse variance weighting calculations all over again. Can just get those images
                 # via the appropriate attributes.
                 if not i.is_mosaic:
-                    flux_hist = i.sky_img.healpix_projection(coordsys=coordsys,
-                                                             nside=nsides).project("HPX", "ENERGY")
-                    pcode_hist = i.pcode_img.healpix_projection(coordsys=coordsys,
-                                                                nside=nsides).project("HPX", "ENERGY")
-                    bkg_stddev_hist = i.bkg_stddev_img.healpix_projection(coordsys=coordsys,
-                                                                          nside=nsides).project("HPX",
-                                                                                                "ENERGY")
+                    flux_hist = i.sky_img.healpix_projection(
+                        coordsys=coordsys, nside=nsides
+                    ).project("HPX", "ENERGY")
+                    pcode_hist = i.pcode_img.healpix_projection(
+                        coordsys=coordsys, nside=nsides
+                    ).project("HPX", "ENERGY")
+                    bkg_stddev_hist = i.bkg_stddev_img.healpix_projection(
+                        coordsys=coordsys, nside=nsides
+                    ).project("HPX", "ENERGY")
 
-                    exposure_hist = Histogram(flux_hist.axes,
-                                              contents=flux_hist.contents.value * 0 + i.sky_img.exposure.value,
-                                              unit=i.sky_img.exposure.unit)
+                    exposure_hist = Histogram(
+                        flux_hist.axes,
+                        contents=flux_hist.contents.value * 0
+                        + i.sky_img.exposure.value,
+                        unit=i.sky_img.exposure.unit,
+                    )
 
                     # correct the units
                     if flux_hist.unit != u.count / u.s:
@@ -746,11 +829,9 @@ class BatSkyView(object):
                         bkg_stddev_hist /= i.sky_img.exposure
 
                     # construct the quality map for each energy and for the total energy images
-                    energy_quality_mask = np.zeros_like(
-                        flux_hist.contents.value)
+                    energy_quality_mask = np.zeros_like(flux_hist.contents.value)
                     good_idx = np.where(
-                        (pcode_hist.contents > _pcodethresh
-                         )
+                        (pcode_hist.contents > _pcodethresh)
                         & (bkg_stddev_hist.contents > 0)
                         & np.isfinite(flux_hist.contents)
                         & np.isfinite(bkg_stddev_hist.contents)
@@ -782,9 +863,15 @@ class BatSkyView(object):
                 # make the intermediate images to do operations with or just get the appropriate images if we have them
                 if count == 0:
                     if not i.is_mosaic:
-                        tot_exposure_hist = deepcopy(exposure_hist) * energy_quality_mask
-                        interim_pcode_hist = deepcopy(pcode_hist) * tot_exposure_hist.contents.value
-                        interm_inv_var_hist = (1 / (bkg_stddev_hist * bkg_stddev_hist)) * energy_quality_mask
+                        tot_exposure_hist = (
+                            deepcopy(exposure_hist) * energy_quality_mask
+                        )
+                        interim_pcode_hist = (
+                            deepcopy(pcode_hist) * tot_exposure_hist.contents.value
+                        )
+                        interm_inv_var_hist = (
+                            1 / (bkg_stddev_hist * bkg_stddev_hist)
+                        ) * energy_quality_mask
                         interm_flux_hist = flux_hist * interm_inv_var_hist
                         # testing for the energy integrated mosaicing
                         # total_e_interim_inv_var_hist = (1 / (
@@ -800,9 +887,15 @@ class BatSkyView(object):
                     # if we dont have a mosaic sky view object where we calculated exposure_hist, etc above then execute
                     # this code block to do mosaicing. otherwise just call the relevant attributes
                     if not i.is_mosaic:
-                        tot_exposure_hist += deepcopy(exposure_hist) * energy_quality_mask
-                        interim_pcode_hist += deepcopy(pcode_hist) * tot_exposure_hist.contents.value
-                        temp_interm_inv_var_hist = (1 / (bkg_stddev_hist * bkg_stddev_hist)) * energy_quality_mask
+                        tot_exposure_hist += (
+                            deepcopy(exposure_hist) * energy_quality_mask
+                        )
+                        interim_pcode_hist += (
+                            deepcopy(pcode_hist) * tot_exposure_hist.contents.value
+                        )
+                        temp_interm_inv_var_hist = (
+                            1 / (bkg_stddev_hist * bkg_stddev_hist)
+                        ) * energy_quality_mask
                         interm_inv_var_hist += temp_interm_inv_var_hist
                         interm_flux_hist += flux_hist * temp_interm_inv_var_hist
 
@@ -814,7 +907,9 @@ class BatSkyView(object):
                     else:
                         tot_exposure_hist += i.exposure_img.project("HPX", "ENERGY")
                         interim_pcode_hist += i.pcode_img.project("HPX", "ENERGY")
-                        interm_inv_var_hist += i.interim_var_img.project("HPX", "ENERGY")
+                        interm_inv_var_hist += i.interim_var_img.project(
+                            "HPX", "ENERGY"
+                        )
                         interm_flux_hist += i.interim_sky_img.project("HPX", "ENERGY")
 
             tmin = u.Quantity(tstart).min()
@@ -825,23 +920,49 @@ class BatSkyView(object):
 
             # create the SkyImages for each quantity
             tot_exposure = BatSkyImage(
-                image_data=Histogram([t_ax, hp_ax, energybin_ax], contents=tot_exposure_hist.contents[np.newaxis],
-                                     unit=tot_exposure_hist.unit), image_type="exposure")
+                image_data=Histogram(
+                    [t_ax, hp_ax, energybin_ax],
+                    contents=tot_exposure_hist.contents[np.newaxis],
+                    unit=tot_exposure_hist.unit,
+                ),
+                image_type="exposure",
+            )
             pcode = BatSkyImage(
-                image_data=Histogram([t_ax, hp_ax, energybin_ax], contents=interim_pcode_hist.contents[np.newaxis],
-                                     unit=interim_pcode_hist.unit), image_type="pcode")
+                image_data=Histogram(
+                    [t_ax, hp_ax, energybin_ax],
+                    contents=interim_pcode_hist.contents[np.newaxis],
+                    unit=interim_pcode_hist.unit,
+                ),
+                image_type="pcode",
+            )
 
             interm_flux = BatSkyImage(
-                image_data=Histogram([t_ax, hp_ax, energybin_ax], contents=interm_flux_hist.contents[np.newaxis],
-                                     unit=interm_flux_hist.unit), is_mosaic_intermediate=True, image_type="flux")
+                image_data=Histogram(
+                    [t_ax, hp_ax, energybin_ax],
+                    contents=interm_flux_hist.contents[np.newaxis],
+                    unit=interm_flux_hist.unit,
+                ),
+                is_mosaic_intermediate=True,
+                image_type="flux",
+            )
 
             # set the image type to None as we can still do projections normally without any additional considerations
             interm_inv_var = BatSkyImage(
-                image_data=Histogram([t_ax, hp_ax, energybin_ax], contents=interm_inv_var_hist.contents[np.newaxis],
-                                     unit=interm_inv_var_hist.unit), is_mosaic_intermediate=True, image_type=None)
+                image_data=Histogram(
+                    [t_ax, hp_ax, energybin_ax],
+                    contents=interm_inv_var_hist.contents[np.newaxis],
+                    unit=interm_inv_var_hist.unit,
+                ),
+                is_mosaic_intermediate=True,
+                image_type=None,
+            )
 
-            test_mosaic = BatSkyView(interim_sky_img=interm_flux, interim_var_img=interm_inv_var, pcode_img=pcode,
-                                     exposure_img=tot_exposure)
+            test_mosaic = BatSkyView(
+                interim_sky_img=interm_flux,
+                interim_var_img=interm_inv_var,
+                pcode_img=pcode,
+                exposure_img=tot_exposure,
+            )
 
             # make sure that these attributes are set correctly for the mosaic skyview
             test_mosaic.healpix_nside = nsides
@@ -864,7 +985,9 @@ class BatSkyView(object):
 
             return test_mosaic  # , test_total_e_mosaic
         else:
-            raise NotImplementedError("Adding Sky Images with the template sky facets is not yet implemented.")
+            raise NotImplementedError(
+                "Adding Sky Images with the template sky facets is not yet implemented."
+            )
 
     def __radd__(self, other):
         return self.__add__(other)

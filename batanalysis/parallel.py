@@ -1,6 +1,7 @@
 """
 This file holds convience functions for conveniently analyzing batches of observation IDs using the joblib module
 """
+
 import os
 import shutil
 from multiprocessing.pool import ThreadPool
@@ -44,13 +45,13 @@ def _remove_pfiles():
 
 
 def _create_BatSurvey(
-        obs_id,
-        obs_dir=None,
-        input_dict=None,
-        recalc=False,
-        load_dir=None,
-        patt_noise_dir=None,
-        verbose=False,
+    obs_id,
+    obs_dir=None,
+    input_dict=None,
+    recalc=False,
+    load_dir=None,
+    patt_noise_dir=None,
+    verbose=False,
 ):
     """
     The inner loop that attempts to run batsurvey on a survey observation ID. If ther eis a load file saved already, it
@@ -97,13 +98,13 @@ def _create_BatSurvey(
 
 
 def batsurvey_analysis(
-        obs_id_list,
-        input_dict=None,
-        recalc=False,
-        load_dir=None,
-        patt_noise_dir=None,
-        verbose=False,
-        nprocs=1,
+    obs_id_list,
+    input_dict=None,
+    recalc=False,
+    load_dir=None,
+    patt_noise_dir=None,
+    verbose=False,
+    nprocs=1,
 ):
     """
     Calls batsurvey for a set of observation IDs. Can process the observations in parallel if nprocs does not equal one.
@@ -145,16 +146,16 @@ def batsurvey_analysis(
 
 
 def _survey_spectrum_analysis(
-        obs,
-        source_name,
-        recalc=False,
-        generic_model=None,
-        setPars=None,
-        fit_iterations=1000,
-        use_cstat=True,
-        ul_pl_index=2,
-        nsigma=3,
-        bkg_nsigma=5,
+    obs,
+    source_name,
+    recalc=False,
+    generic_model=None,
+    setPars=None,
+    fit_iterations=1000,
+    use_cstat=True,
+    ul_pl_index=2,
+    nsigma=3,
+    bkg_nsigma=5,
 ):
     """
     Calculate and fit a spectrum for a source at a single pointing.
@@ -195,7 +196,7 @@ def _survey_spectrum_analysis(
                     i, source_name
                 )
             val = (len(obs.get_pha_filenames()) <= 0) or (
-                    len(obs.get_pointing_ids()) != pointing_id_test
+                len(obs.get_pointing_ids()) != pointing_id_test
             )
 
             # if this is true then we should set recalc=True to redo the calculations for this observation ID
@@ -276,17 +277,17 @@ def _survey_spectrum_analysis(
 
 
 def batspectrum_survey_analysis(
-        batsurvey_obs_list,
-        source_name,
-        recalc=False,
-        generic_model=None,
-        setPars=None,
-        fit_iterations=1000,
-        use_cstat=True,
-        ul_pl_index=2,
-        nsigma=3,
-        bkg_nsigma=5,
-        nprocs=1,
+    batsurvey_obs_list,
+    source_name,
+    recalc=False,
+    generic_model=None,
+    setPars=None,
+    fit_iterations=1000,
+    use_cstat=True,
+    ul_pl_index=2,
+    nsigma=3,
+    bkg_nsigma=5,
+    nprocs=1,
 ):
     """
     Calculates and fits the spectra for a single source across many BAT Survey observations in parallel.
@@ -348,15 +349,15 @@ def batspectrum_survey_analysis(
 
 
 def _TTE_spectrum_analysis(
-        spectrum,
-        recalc=False,
-        generic_model=None,
-        setPars=None,
-        fit_iterations=1000,
-        use_cstat=True,
-        ul_pl_index=2,
-        nsigma=3,
-        bkg_nsigma=5,
+    spectrum,
+    recalc=False,
+    generic_model=None,
+    setPars=None,
+    fit_iterations=1000,
+    use_cstat=True,
+    ul_pl_index=2,
+    nsigma=3,
+    bkg_nsigma=5,
 ):
     """
     Fit a single spectrum object and determine if a detection has been made. If a detection has been made, the Spectrum
@@ -428,16 +429,16 @@ def _TTE_spectrum_analysis(
 
 
 def batspectrum_TTE_analysis(
-        spectrum,
-        recalc=False,
-        generic_model=None,
-        setPars=None,
-        fit_iterations=1000,
-        use_cstat=True,
-        ul_pl_index=2,
-        nsigma=3,
-        bkg_nsigma=5,
-        nprocs=1,
+    spectrum,
+    recalc=False,
+    generic_model=None,
+    setPars=None,
+    fit_iterations=1000,
+    use_cstat=True,
+    ul_pl_index=2,
+    nsigma=3,
+    bkg_nsigma=5,
+    nprocs=1,
 ):
     """
     Calculates and fits the spectra that are passed in parallel. These should be BatAnalysis.Spectrum objects in a list.
@@ -481,8 +482,10 @@ def batspectrum_TTE_analysis(
     else:
         # verify that we have all elements be a Spectrum object
         if np.any([not isinstance(i, Spectrum) for i in spectrum]):
-            raise ValueError("The input list must be made of all BatAnalysis Spectrum objects. "
-                             "Please ensure that this condition is met.")
+            raise ValueError(
+                "The input list must be made of all BatAnalysis Spectrum objects. "
+                "Please ensure that this condition is met."
+            )
 
     out_spect = Parallel(n_jobs=nprocs)(
         delayed(_TTE_spectrum_analysis)(
@@ -531,21 +534,23 @@ def batspectrum_analysis(*args, **kwargs):
         # we are passing in a phafilename for
         ret = batspectrum_survey_analysis(*args, **kwargs)
     else:
-        raise ValueError("The inputs cannot be parsed appropriately. Please consult the documentation for "
-                         "batspectrum_TTE_analysis or batspectrum_survey_analysis for the values that should be passed in.")
+        raise ValueError(
+            "The inputs cannot be parsed appropriately. Please consult the documentation for "
+            "batspectrum_TTE_analysis or batspectrum_survey_analysis for the values that should be passed in."
+        )
 
     return ret
 
 
 def batmosaic_analysis(
-        batsurvey_obs_list,
-        outventory_file,
-        time_bins,
-        catalog_file=None,
-        compute_total_mosaic=True,
-        total_mosaic_savedir=None,
-        recalc=False,
-        nprocs=1,
+    batsurvey_obs_list,
+    outventory_file,
+    time_bins,
+    catalog_file=None,
+    compute_total_mosaic=True,
+    total_mosaic_savedir=None,
+    recalc=False,
+    nprocs=1,
 ):
     """
     Calculates the mosaic images in parallel.
@@ -607,9 +612,7 @@ def batmosaic_analysis(
                 f"mosaic_{i.datetime64.astype('datetime64[D]')}"
             )
             if not binned_savedir.exists():
-                binned_savedir = outventory_file.parent.joinpath(
-                    f"mosaic_{i.mjd}"
-                )
+                binned_savedir = outventory_file.parent.joinpath(f"mosaic_{i.mjd}")
 
             dirtest(binned_savedir)
 
@@ -684,15 +687,15 @@ def download_swiftdata(table,  reload=False,
 
 
 def download_swiftdata(
-        table,
-        reload=False,
-        bat=True,
-        auxil=True,
-        log=False,
-        uvot=False,
-        xrt=False,
-        save_dir=None,
-        nprocs=1,
+    table,
+    reload=False,
+    bat=True,
+    auxil=True,
+    log=False,
+    uvot=False,
+    xrt=False,
+    save_dir=None,
+    nprocs=1,
 ):
     # create temporary functions that will be called separately to download the data
     dl = lambda x: download_swiftdata(

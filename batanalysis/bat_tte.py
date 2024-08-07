@@ -33,17 +33,17 @@ except ModuleNotFoundError as err:
 
 class BatEvent(BatObservation):
     def __init__(
-            self,
-            obs_id,
-            result_dir=None,
-            transient_name=None,
-            ra="event",
-            dec="event",
-            obs_dir=None,
-            input_dict=None,
-            recalc=False,
-            verbose=False,
-            load_dir=None,
+        self,
+        obs_id,
+        result_dir=None,
+        transient_name=None,
+        ra="event",
+        dec="event",
+        obs_dir=None,
+        input_dict=None,
+        recalc=False,
+        verbose=False,
+        load_dir=None,
     ):
         # make sure that the observation ID is a string
         if type(obs_id) is not str:
@@ -83,11 +83,11 @@ class BatEvent(BatObservation):
         # .batevent_complete file (meaning that the __init__ method didnt complete)
         if recalc or not load_file.exists() or not complete_file.exists():
             if (
-                    not self.obs_dir.joinpath("bat").joinpath("event").is_dir()
-                    or not self.obs_dir.joinpath("bat").joinpath("hk").is_dir()
-                    or not self.obs_dir.joinpath("bat").joinpath("rate").is_dir()
-                    or not self.obs_dir.joinpath("tdrss").is_dir()
-                    or not self.obs_dir.joinpath("auxil").is_dir()
+                not self.obs_dir.joinpath("bat").joinpath("event").is_dir()
+                or not self.obs_dir.joinpath("bat").joinpath("hk").is_dir()
+                or not self.obs_dir.joinpath("bat").joinpath("rate").is_dir()
+                or not self.obs_dir.joinpath("tdrss").is_dir()
+                or not self.obs_dir.joinpath("auxil").is_dir()
             ):
                 raise ValueError(
                     "The observation ID folder needs to contain the bat/event/, the bat/hk/, the bat/rate/, the auxil/, and tdrss/ subdirectories in order to "
@@ -142,8 +142,8 @@ class BatEvent(BatObservation):
                 if ".gz" in self.event_files.suffix:
                     with gzip.open(self.event_files, "rb") as f_in:
                         with open(
-                                self.event_files.parent.joinpath(self.event_files.stem),
-                                "wb",
+                            self.event_files.parent.joinpath(self.event_files.stem),
+                            "wb",
                         ) as f_out:
                             shutil.copyfileobj(f_in, f_out)
 
@@ -219,7 +219,8 @@ class BatEvent(BatObservation):
                         tdrss_dec = file[0].header["BDEC_OBJ"] * u.deg
                     else:
                         raise ValueError(
-                            "The TDRSS msbce file BRA/BDEC_OBJ does not seem to be in the units of decimal degrees which is not supported.")
+                            "The TDRSS msbce file BRA/BDEC_OBJ does not seem to be in the units of decimal degrees which is not supported."
+                        )
 
             # get info from event file which must exist to get to this point
             with fits.open(self.event_files) as file:
@@ -228,7 +229,8 @@ class BatEvent(BatObservation):
                     event_dec = file[0].header["DEC_OBJ"] * u.deg
                 else:
                     raise ValueError(
-                        "The event file RA/DEC_OBJ does not seem to be in the units of decimal degrees which is not supported.")
+                        "The event file RA/DEC_OBJ does not seem to be in the units of decimal degrees which is not supported."
+                    )
 
             # by default, ra/dec="event" to use the coordinates set here by SDC but can use other coordinates
             if "tdrss" in ra or "tdrss" in dec:
@@ -403,9 +405,7 @@ class BatEvent(BatObservation):
         Saves the current BatEvent object
         :return: None
         """
-        file = self.result_dir.joinpath(
-            "batevent.pickle"
-        )
+        file = self.result_dir.joinpath("batevent.pickle")
         with open(file, "wb") as f:
             pickle.dump(self.__dict__, f, 2)
         print("A save file has been written to %s." % (str(file)))
@@ -626,7 +626,8 @@ class BatEvent(BatObservation):
                 event_dec = file[0].header["DEC_OBJ"] * u.deg
             else:
                 raise ValueError(
-                    "The event file RA/DEC_OBJ does not seem to be in the units of decimal degrees which is not supported.")
+                    "The event file RA/DEC_OBJ does not seem to be in the units of decimal degrees which is not supported."
+                )
 
             if event_ra != self.ra or event_dec != self.dec:
                 # update the event file RA/DEC_OBJ values everywhere
@@ -651,20 +652,22 @@ class BatEvent(BatObservation):
 
         return None
 
-    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
+    @u.quantity_input(
+        timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"]
+    )
     def create_lightcurve(
-            self,
-            lc_file=None,
-            timebinalg="uniform",
-            timedelta=np.timedelta64(64, "ms"),
-            tstart=None,
-            tstop=None,
-            timebins=None,
-            T0=None,
-            is_relative=False,
-            energybins=[15, 25, 50, 100, 350] * u.keV,
-            mask_weighting=True,
-            recalc=False,
+        self,
+        lc_file=None,
+        timebinalg="uniform",
+        timedelta=np.timedelta64(64, "ms"),
+        tstart=None,
+        tstop=None,
+        timebins=None,
+        T0=None,
+        is_relative=False,
+        energybins=[15, 25, 50, 100, 350] * u.keV,
+        mask_weighting=True,
+        recalc=False,
     ):
         """
         This method returns a lightcurve object which can be manipulated in different energies/timebins. The lightcurve
@@ -766,11 +769,14 @@ class BatEvent(BatObservation):
                         max_t += T0
 
                 # finally add the energy channels
-                lc_filename = Path(f"t_{min_t}-{max_t}_dt_custom_{len(energybins) - 1}chan.lc")
+                lc_filename = Path(
+                    f"t_{min_t}-{max_t}_dt_custom_{len(energybins) - 1}chan.lc"
+                )
             else:
                 # use th normal batbinevt related information with energy channel as distinguishing info
                 lc_filename = Path(
-                    f"t_{timebinalg}_dt_{timedelta / np.timedelta64(1, 's')}_{len(energybins) - 1}chan.lc")
+                    f"t_{timebinalg}_dt_{timedelta / np.timedelta64(1, 's')}_{len(energybins) - 1}chan.lc"
+                )
 
         else:
             lc_filename = lc_file
@@ -814,19 +820,21 @@ class BatEvent(BatObservation):
 
         return lc
 
-    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
+    @u.quantity_input(
+        timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"]
+    )
     def create_pha(
-            self,
-            pha_file=None,
-            tstart=None,
-            tstop=None,
-            timebins=None,
-            T0=None,
-            is_relative=False,
-            energybins=None,
-            recalc=False,
-            mask_weighting=True,
-            load_upperlims=False,
+        self,
+        pha_file=None,
+        tstart=None,
+        tstop=None,
+        timebins=None,
+        T0=None,
+        is_relative=False,
+        energybins=None,
+        recalc=False,
+        mask_weighting=True,
+        load_upperlims=False,
     ):
         """
         This function creates a pha file that spans a given time range. The pha filename can be specified for a file
@@ -901,7 +909,7 @@ class BatEvent(BatObservation):
 
         # do error checking on tmin/tmax make sure both are defined and that they are the same length
         if (tstart is None and tstop is not None) or (
-                tstart is None and tstop is not None
+            tstart is None and tstop is not None
         ):
             raise ValueError("Both tstart and tstop must be defined.")
 
@@ -958,7 +966,9 @@ class BatEvent(BatObservation):
             if load_upperlims:
                 new_phafilename = []
                 for i in pha_filename:
-                    upperlim_files = list(pha_dir.glob(f"{i.stem}_bkgnsigma_*_upperlimit.pha"))
+                    upperlim_files = list(
+                        pha_dir.glob(f"{i.stem}_bkgnsigma_*_upperlimit.pha")
+                    )
                     if len(upperlim_files) > 0:
                         for j in upperlim_files:
                             new_phafilename.append(j)
@@ -966,7 +976,8 @@ class BatEvent(BatObservation):
                         new_phafilename.append(i)
                         warnings.warn(
                             f"There is no associated upper limit pha file for {i}, will continue by just loading in this file.",
-                            stacklevel=2)
+                            stacklevel=2,
+                        )
                 pha_filename = new_phafilename
 
         else:
@@ -978,9 +989,11 @@ class BatEvent(BatObservation):
         # if a single file has been specified, assume that is should go in the event/pha directory unless
         # the user has passed in an absolute file path
         final_pha_files = [
-            pha_dir.joinpath(f"{i}")
-            if not Path(i).is_absolute()
-            else Path(i).expanduser().resolve()
+            (
+                pha_dir.joinpath(f"{i}")
+                if not Path(i).is_absolute()
+                else Path(i).expanduser().resolve()
+            )
             for i in pha_filename
         ]
 
@@ -1038,17 +1051,19 @@ class BatEvent(BatObservation):
         else:
             return spectrum_list
 
-    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
+    @u.quantity_input(
+        timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"]
+    )
     def create_dph(
-            self,
-            dph_file=None,
-            tstart=None,
-            tstop=None,
-            timebins=None,
-            T0=None,
-            is_relative=False,
-            energybins=None,
-            recalc=False,
+        self,
+        dph_file=None,
+        tstart=None,
+        tstop=None,
+        timebins=None,
+        T0=None,
+        is_relative=False,
+        energybins=None,
+        recalc=False,
     ):
         """
         This method creates a detector plane histogram. By default, this method will create a single BatDPH object for
@@ -1117,7 +1132,7 @@ class BatEvent(BatObservation):
 
         # do error checking on tmin/tmax make sure both are defined and that they are the same length
         if (tstart is None and tstop is not None) or (
-                tstart is None and tstop is not None
+            tstart is None and tstop is not None
         ):
             raise ValueError("Both tstart and tstop must be defined.")
 
@@ -1154,14 +1169,15 @@ class BatEvent(BatObservation):
             name = Path(f"t_{start}-{end}_{ntbins}tbins_{nchannels}chan.dph")
             dph_filename.append(name)
 
-
         else:
             dph_filename = dph_file
 
         final_dph_files = [
-            dph_dir.joinpath(f"{i}")
-            if not Path(i).is_absolute()
-            else Path(i).expanduser().resolve()
+            (
+                dph_dir.joinpath(f"{i}")
+                if not Path(i).is_absolute()
+                else Path(i).expanduser().resolve()
+            )
             for i in dph_filename
         ]
 
@@ -1171,11 +1187,12 @@ class BatEvent(BatObservation):
             # dphs via the self.dphs property
             do_t_energy_calc = not (final_dph_files[i].exists() and not recalc)
 
-            dph = BatDPH(final_dph_files[i], event_file=self.event_files,
-                         recalc=recalc)
+            dph = BatDPH(final_dph_files[i], event_file=self.event_files, recalc=recalc)
 
             if do_t_energy_calc:
-                dph.set_timebins(tmin=input_tstart, tmax=input_tstop, is_relative=is_relative, T0=T0)
+                dph.set_timebins(
+                    tmin=input_tstart, tmax=input_tstop, is_relative=is_relative, T0=T0
+                )
                 if energybins is not None:
                     dph.set_energybins(energybins=energybins)
 
@@ -1185,17 +1202,20 @@ class BatEvent(BatObservation):
 
         return dph_list[0]
 
-    @u.quantity_input(timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"])
-    def create_dpi(self,
-                   dpi_file=None,
-                   tstart=None,
-                   tstop=None,
-                   timebins=None,
-                   T0=None,
-                   is_relative=False,
-                   energybins=[15, 350] * u.keV,
-                   recalc=False,
-                   ):
+    @u.quantity_input(
+        timebins=["time"], tstart=["time"], tstop=["time"], energybins=["energy"]
+    )
+    def create_dpi(
+        self,
+        dpi_file=None,
+        tstart=None,
+        tstop=None,
+        timebins=None,
+        T0=None,
+        is_relative=False,
+        energybins=[15, 350] * u.keV,
+        recalc=False,
+    ):
         """
         This method creates and returns a BatDPI object. Unlike the create_DPH method, one DPI created here
         corresponds to only 1 time bin and as many energybins as is specified by the user.
@@ -1254,7 +1274,7 @@ class BatEvent(BatObservation):
             input_tstop = timebins[1:]
         # do error checking on tmin/tmax make sure both are defined and that they are the same length
         if (tstart is None and tstop is not None) or (
-                tstart is None and tstop is not None
+            tstart is None and tstop is not None
         ):
             raise ValueError("Both tstart and tstop must be defined.")
         if tstart is not None and tstop is not None:
@@ -1283,7 +1303,8 @@ class BatEvent(BatObservation):
                     # make sure that the timebin does not extend past the min/max event data time
                     if s < self.data.time.min().value or e > self.data.time.max().value:
                         raise ValueError(
-                            f"The bounds of the timebin {s}-{e} extend past the min/max event time in the event file.")
+                            f"The bounds of the timebin {s}-{e} extend past the min/max event time in the event file."
+                        )
 
                     dpi_filename.append(Path(f"t_{s}-{e}_{nchannels}chan.dpi"))
             else:
@@ -1301,9 +1322,11 @@ class BatEvent(BatObservation):
                 dpi_filename = [dpi_file]
 
         final_dpi_files = [
-            dpi_dir.joinpath(f"{i}")
-            if not Path(i).is_absolute()
-            else Path(i).expanduser().resolve()
+            (
+                dpi_dir.joinpath(f"{i}")
+                if not Path(i).is_absolute()
+                else Path(i).expanduser().resolve()
+            )
             for i in dpi_filename
         ]
 
@@ -1313,8 +1336,12 @@ class BatEvent(BatObservation):
             # dphs via the self.dphs property
             do_t_energy_calc = not (file.exists() and not recalc)
 
-            dpi = BatDPI(file, event_file=self.event_files,
-                         detector_quality_file=self.detector_quality_file, recalc=recalc)
+            dpi = BatDPI(
+                file,
+                event_file=self.event_files,
+                detector_quality_file=self.detector_quality_file,
+                recalc=recalc,
+            )
 
             if do_t_energy_calc:
                 dpi.set_timebins(tmin=start, tmax=end, is_relative=is_relative, T0=T0)
@@ -1330,16 +1357,17 @@ class BatEvent(BatObservation):
         else:
             return dpi_list
 
-    def create_skyview(self,
-                       dpis=None,
-                       tstart=None,
-                       tstop=None,
-                       timebins=None,
-                       T0=None,
-                       is_relative=False,
-                       energybins=[15, 350] * u.keV,
-                       recalc=False,
-                       ):
+    def create_skyview(
+        self,
+        dpis=None,
+        tstart=None,
+        tstop=None,
+        timebins=None,
+        T0=None,
+        is_relative=False,
+        energybins=[15, 350] * u.keV,
+        recalc=False,
+    ):
         """
         This method returns a sky view for all the DPIs that have been specified. If no DPIs
         have been created which correspond to the input times/energies then this method will create them and then produce
@@ -1389,8 +1417,15 @@ class BatEvent(BatObservation):
 
         # if dpis is None, we need to create/load the DPI(s) from the other parameters passed in
         if dpis is None:
-            dpi_output = self.create_dpi(tstart=tstart, tstop=tstop, timebins=timebins, T0=T0, is_relative=is_relative,
-                                         energybins=energybins, recalc=recalc)
+            dpi_output = self.create_dpi(
+                tstart=tstart,
+                tstop=tstop,
+                timebins=timebins,
+                T0=T0,
+                is_relative=is_relative,
+                energybins=energybins,
+                recalc=recalc,
+            )
             # make sure we have a list
             if not isinstance(dpi_output, list):
                 dpi_output = [dpi_output]
@@ -1402,7 +1437,8 @@ class BatEvent(BatObservation):
 
             if np.any([not isinstance(i, BatDPI) for i in dpi_output]):
                 raise ValueError(
-                    "dpi can only be set to a BatDPI object or a list of BatDPI objects.")
+                    "dpi can only be set to a BatDPI object or a list of BatDPI objects."
+                )
 
         # we have created/loaded the necessary information to now create the BatSkyView objects
         skyviews_list = []
@@ -1416,9 +1452,14 @@ class BatEvent(BatObservation):
             # skyviews via the self.skyviews property
             save_property = not (skyview_file.exists() and not recalc)
 
-            skyview = BatSkyView(skyimg_file=skyview_file, bat_dpi=dpi, attitude_file=self.attitude_file,
-                                 create_bkg_stddev_img=True,
-                                 create_snr_img=True, recalc=recalc)
+            skyview = BatSkyView(
+                skyimg_file=skyview_file,
+                bat_dpi=dpi,
+                attitude_file=self.attitude_file,
+                create_bkg_stddev_img=True,
+                create_snr_img=True,
+                recalc=recalc,
+            )
 
             if save_property:
                 self.skyviews = skyview
@@ -1446,11 +1487,13 @@ class BatEvent(BatObservation):
         elif isinstance(value, list):
             if len(value) > 0:
                 raise ValueError(
-                    "The spectra property can only be set to None, an empty list, or have a Spectrum object appended to it.")
+                    "The spectra property can only be set to None, an empty list, or have a Spectrum object appended to it."
+                )
             self._spectra = value
         else:
             raise ValueError(
-                "The spectra property can only be set to None, an empty list, or have a Spectrum object appended to it.")
+                "The spectra property can only be set to None, an empty list, or have a Spectrum object appended to it."
+            )
 
     @property
     def lightcurves(self):
@@ -1468,11 +1511,13 @@ class BatEvent(BatObservation):
         elif isinstance(value, list):
             if len(value) > 0:
                 raise ValueError(
-                    "The lightcurves property can only be set to None, an empty list, or have a Lightcurve object appended to it.")
+                    "The lightcurves property can only be set to None, an empty list, or have a Lightcurve object appended to it."
+                )
             self._lightcurves = value
         else:
             raise ValueError(
-                "The lightcurves property can only be set to None, an empty list, or have a Lightcurve object appended to it.")
+                "The lightcurves property can only be set to None, an empty list, or have a Lightcurve object appended to it."
+            )
 
     @property
     def dphs(self):
@@ -1490,11 +1535,13 @@ class BatEvent(BatObservation):
         elif isinstance(value, list):
             if len(value) > 0:
                 raise ValueError(
-                    "The dphs property can only be set to None, an empty list, or have a BatDPH object appended to it.")
+                    "The dphs property can only be set to None, an empty list, or have a BatDPH object appended to it."
+                )
             self._dphs = value
         else:
             raise ValueError(
-                "The dphs property can only be set to None, an empty list, or have a BatDPH object appended to it.")
+                "The dphs property can only be set to None, an empty list, or have a BatDPH object appended to it."
+            )
 
     @property
     def dpis(self):
@@ -1512,11 +1559,13 @@ class BatEvent(BatObservation):
         elif isinstance(value, list):
             if len(value) > 0:
                 raise ValueError(
-                    "The dpis property can only be set to None, an empty list, or have a BatDPI object appended to it.")
+                    "The dpis property can only be set to None, an empty list, or have a BatDPI object appended to it."
+                )
             self._dpis = value
         else:
             raise ValueError(
-                "The dpis property can only be set to None, an empty list, or have a BatDPI object appended to it.")
+                "The dpis property can only be set to None, an empty list, or have a BatDPI object appended to it."
+            )
 
     @property
     def skyviews(self):
@@ -1534,8 +1583,10 @@ class BatEvent(BatObservation):
         elif isinstance(value, list):
             if len(value) > 0:
                 raise ValueError(
-                    "The skyviews property can only be set to None, an empty list, or have a BatSkyView object appended to it.")
+                    "The skyviews property can only be set to None, an empty list, or have a BatSkyView object appended to it."
+                )
             self._skyviews = value
         else:
             raise ValueError(
-                "The skyviews property can only be set to None, an empty list, or have a BatSkyView object appended to it.")
+                "The skyviews property can only be set to None, an empty list, or have a BatSkyView object appended to it."
+            )

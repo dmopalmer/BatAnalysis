@@ -41,16 +41,16 @@ class DetectorPlaneHistogram(Histogram):
         emax=["energy"],
     )
     def __init__(
-            self,
-            event_data=None,
-            histogram_data=None,
-            timebins=None,
-            tmin=None,
-            tmax=None,
-            energybins=None,
-            emin=None,
-            emax=None,
-            weights=None,
+        self,
+        event_data=None,
+        histogram_data=None,
+        timebins=None,
+        tmin=None,
+        tmax=None,
+        energybins=None,
+        emin=None,
+        emax=None,
+        weights=None,
     ):
         """
         This class can be initiated from individual event data that gets histogrammed in space/time/energy. It can be
@@ -99,7 +99,9 @@ class DetectorPlaneHistogram(Histogram):
         if event_data is not None:
             # make sure that it is a TimeTaggedEvents class
             if not isinstance(event_data, TimeTaggedEvents):
-                raise ValueError("The passed in event_data needs to be an instance of the TimeTaggedEvents class.")
+                raise ValueError(
+                    "The passed in event_data needs to be an instance of the TimeTaggedEvents class."
+                )
 
             parse_data = deepcopy(event_data)
             self._passed_data = "event"
@@ -226,7 +228,7 @@ class DetectorPlaneHistogram(Histogram):
         self.tbins["TIME_START"] = timebin_edges[:-1]
         self.tbins["TIME_STOP"] = timebin_edges[1:]
         self.tbins["TIME_CENT"] = 0.5 * (
-                self.tbins["TIME_START"] + self.tbins["TIME_STOP"]
+            self.tbins["TIME_START"] + self.tbins["TIME_STOP"]
         )
 
         self.ebins = {}
@@ -261,14 +263,14 @@ class DetectorPlaneHistogram(Histogram):
 
         # get the timebin edges
         timebin_edges = (
-                np.zeros(self.tbins["TIME_START"].size + 1) * self.tbins["TIME_START"].unit
+            np.zeros(self.tbins["TIME_START"].size + 1) * self.tbins["TIME_START"].unit
         )
         timebin_edges[:-1] = self.tbins["TIME_START"]
         timebin_edges[-1] = self.tbins["TIME_STOP"][-1]
 
         # get the energybin edges
         energybin_edges = (
-                np.zeros(self.ebins["E_MIN"].size + 1) * self.ebins["E_MIN"].unit
+            np.zeros(self.ebins["E_MIN"].size + 1) * self.ebins["E_MIN"].unit
         )
         energybin_edges[:-1] = self.ebins["E_MIN"]
         energybin_edges[-1] = self.ebins["E_MAX"][-1]
@@ -318,10 +320,10 @@ class DetectorPlaneHistogram(Histogram):
 
     @u.quantity_input(timebins=["time"], tmin=["time"], tmax=["time"])
     def set_timebins(
-            self,
-            timebins=None,
-            tmin=None,
-            tmax=None,
+        self,
+        timebins=None,
+        tmin=None,
+        tmax=None,
     ):
         """
         This method rebins the histogram in time. Note: this doesnt properly take the weighting into account and will
@@ -338,7 +340,9 @@ class DetectorPlaneHistogram(Histogram):
         """
 
         # first make sure that we have a time binning axis of our histogram
-        if "hist" in self._passed_data and ("TIME" not in self.axes.labels or self.axes["TIME"].nbins == 1):
+        if "hist" in self._passed_data and (
+            "TIME" not in self.axes.labels or self.axes["TIME"].nbins == 1
+        ):
             raise ValueError(
                 "The histogrammed data either has no timing information or there is only one time bin which means that"
                 "the data cannot be rebinned in time."
@@ -370,7 +374,7 @@ class DetectorPlaneHistogram(Histogram):
         if "hist" in self._passed_data:
             for s, e in zip(tmin, tmax):
                 if not np.all(np.in1d(s, self.tbins["TIME_START"])) or not np.all(
-                        np.in1d(e, self.tbins["TIME_STOP"])
+                    np.in1d(e, self.tbins["TIME_STOP"])
                 ):
                     raise ValueError(
                         f"The requested time binning from {s}-{e} is not encompassed by the current timebins "
@@ -394,7 +398,7 @@ class DetectorPlaneHistogram(Histogram):
         self.tbins["TIME_START"] = tmin
         self.tbins["TIME_STOP"] = tmax
         self.tbins["TIME_CENT"] = 0.5 * (
-                self.tbins[f"TIME_START"] + self.tbins[f"TIME_STOP"]
+            self.tbins[f"TIME_START"] + self.tbins[f"TIME_STOP"]
         )
 
         # get the intersection with the good time intervals for us to keep track of these and the exposures
@@ -415,7 +419,9 @@ class DetectorPlaneHistogram(Histogram):
             )
             self.gti["TIME_START"] = self.tbins["TIME_START"][idx]
             self.gti["TIME_STOP"] = self.tbins["TIME_STOP"][idx]
-            self.gti["TIME_CENT"] = 0.5 * (self.gti["TIME_START"] + self.gti["TIME_STOP"])
+            self.gti["TIME_CENT"] = 0.5 * (
+                self.gti["TIME_START"] + self.gti["TIME_STOP"]
+            )
 
             self.exposure = self.gti["TIME_STOP"] - self.gti["TIME_START"]
 
@@ -441,7 +447,9 @@ class DetectorPlaneHistogram(Histogram):
         """
 
         # first make sure that we have a energy binning axis of our histogram
-        if "hist" in self._passed_data and ("ENERGY" not in self.axes.labels or self.axes["ENERGY"].nbins == 1):
+        if "hist" in self._passed_data and (
+            "ENERGY" not in self.axes.labels or self.axes["ENERGY"].nbins == 1
+        ):
             raise ValueError(
                 "The DPH either has  no energy information or there is only one energy bin which means that"
                 "the DPH cannot be rebinned in energy."
@@ -474,7 +482,7 @@ class DetectorPlaneHistogram(Histogram):
         if "hist" in self._passed_data:
             for s, e in zip(emin, emax):
                 if not np.all(np.in1d(s, self.ebins["E_MIN"])) or not np.all(
-                        np.in1d(e, self.ebins["E_MAX"])
+                    np.in1d(e, self.ebins["E_MAX"])
                 ):
                     raise ValueError(
                         f"The requested energy binning from {s}-{e} is not encompassed by the current energybins "
@@ -489,7 +497,9 @@ class DetectorPlaneHistogram(Histogram):
             histograms = np.zeros(new_hist_size)
 
             for i, s, e in zip(np.arange(emin.size), emin, emax):
-                idx = np.where((self.ebins["E_MIN"] >= s) & (self.ebins["E_MAX"] <= e))[0]
+                idx = np.where((self.ebins["E_MIN"] >= s) & (self.ebins["E_MAX"] <= e))[
+                    0
+                ]
                 histograms[:, :, :, i] = self.contents[:, :, :, idx].sum(axis=-1)
 
         # set the new ebin attrubute

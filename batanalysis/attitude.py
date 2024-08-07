@@ -4,6 +4,7 @@ the attitude data.
 
 Tyler Parsotan July 2024
 """
+
 from pathlib import Path
 
 import astropy.units as u
@@ -33,7 +34,9 @@ class Attitude(object):
         attitude_file = Path(attitude_file).expanduser().resolve()
 
         if not attitude_file.exists():
-            raise ValueError(f"The attitude file passed in to be read {attitude_file} does not seem to exist.")
+            raise ValueError(
+                f"The attitude file passed in to be read {attitude_file} does not seem to exist."
+            )
 
         # iteratively read in the data with units for the *sat and mkf files
         all_data = {}
@@ -63,7 +66,8 @@ class Attitude(object):
             dec = all_data["DEC"]
             roll = all_data["ROLL"]
         else:
-            raise ValueError("This attitude file is not recognized. Please pass in a *.sat or *.mkf file.")
+            raise ValueError(
+                "This attitude file is not recognized. Please pass in a *.sat or *.mkf file."
+            )
 
-        return cls(time=time, ra=ra, dec=dec,
-                   roll=roll, acs_flags=flags)
+        return cls(time=time, ra=ra, dec=dec, roll=roll, acs_flags=flags)

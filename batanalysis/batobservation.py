@@ -3,6 +3,7 @@ This file contains the batobservation class which contains information pertainin
 
 Tyler Parsotan Jan 24 2022
 """
+
 import os
 import shutil
 import sys
@@ -59,21 +60,27 @@ class BatObservation(object):
             # the use has provided a directory to where the bat observation id folder is kept
             # test to see if the folder exists there
             if obs_dir.joinpath(self.obs_id).is_dir():
-                self.obs_dir = obs_dir.joinpath(self.obs_id)  # os.path.join(obs_dir , self.obs_id)
+                self.obs_dir = obs_dir.joinpath(
+                    self.obs_id
+                )  # os.path.join(obs_dir , self.obs_id)
             else:
                 raise FileNotFoundError(
-                    'The directory %s does not contain the observation data corresponding to ID: %s' % (
-                        obs_dir, self.obs_id))
+                    "The directory %s does not contain the observation data corresponding to ID: %s"
+                    % (obs_dir, self.obs_id)
+                )
         else:
             obs_dir = datadir()  # Path.cwd()
 
             if obs_dir.joinpath(self.obs_id).is_dir():
                 # os.path.isdir(os.path.join(obs_dir , self.obs_id)):
-                self.obs_dir = obs_dir.joinpath(self.obs_id)  # self.obs_dir = os.path.join(obs_dir , self.obs_id)
+                self.obs_dir = obs_dir.joinpath(
+                    self.obs_id
+                )  # self.obs_dir = os.path.join(obs_dir , self.obs_id)
             else:
                 raise FileNotFoundError(
-                    'The directory %s does not contain the observation data correponding to ID: %s' % (
-                        obs_dir, self.obs_id))
+                    "The directory %s does not contain the observation data correponding to ID: %s"
+                    % (obs_dir, self.obs_id)
+                )
 
     def _set_local_pfile_dir(self, dir):
         """
@@ -112,7 +119,9 @@ class BatObservation(object):
             return hsp.bathotpix(**input_dict)
         except Exception as e:
             print(e)
-            raise RuntimeError(f"The call to Heasoft bathotpix failed with inputs: {input_dict}.")
+            raise RuntimeError(
+                f"The call to Heasoft bathotpix failed with inputs: {input_dict}."
+            )
 
     def _call_batdetmask(self, input_dict):
         """
@@ -127,8 +136,9 @@ class BatObservation(object):
             return hsp.bathotpix(**input_dict)
         except Exception as e:
             print(e)
-            raise RuntimeError(f"The call to Heasoft batdetmask failed with inputs: {input_dict}.")
-
+            raise RuntimeError(
+                f"The call to Heasoft batdetmask failed with inputs: {input_dict}."
+            )
 
     def _call_batbinevt(self, input_dict):
         """
@@ -142,7 +152,9 @@ class BatObservation(object):
             return hsp.batbinevt(**input_dict)
         except Exception as e:
             print(e)
-            raise RuntimeError(f"The call to Heasoft batbinevt failed with inputs {input_dict}.")
+            raise RuntimeError(
+                f"The call to Heasoft batbinevt failed with inputs {input_dict}."
+            )
 
     def _call_batmaskwtevt(self, input_dict):
         """
@@ -156,7 +168,9 @@ class BatObservation(object):
             return hsp.batmaskwtevt(**input_dict)
         except Exception as e:
             print(e)
-            raise RuntimeError(f"The call to Heasoft batmaskwtevt failed with inputs {input_dict}.")
+            raise RuntimeError(
+                f"The call to Heasoft batmaskwtevt failed with inputs {input_dict}."
+            )
 
     def _call_bateconvert(self, input_dict):
         """
@@ -170,4 +184,6 @@ class BatObservation(object):
             return hsp.bateconvert(**input_dict)
         except Exception as e:
             print(e)
-            raise RuntimeError(f"The call to Heasoft batmaskwtevt failed with inputs {input_dict}.")
+            raise RuntimeError(
+                f"The call to Heasoft batmaskwtevt failed with inputs {input_dict}."
+            )

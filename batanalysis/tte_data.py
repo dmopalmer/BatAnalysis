@@ -3,6 +3,7 @@ This file holds the BAT TimeTaggedEvents class
 
 Tyler Parsotan Jul 16 2024
 """
+
 from pathlib import Path
 
 import astropy.units as u
@@ -19,16 +20,16 @@ class TimeTaggedEvents(object):
     """
 
     def __init__(
-            self,
-            time,
-            detector_id,
-            detx,
-            dety,
-            quality_flag,
-            energy,
-            pulse_height_amplitude,
-            pulse_invariant,
-            mask_weight=None,
+        self,
+        time,
+        detector_id,
+        detx,
+        dety,
+        quality_flag,
+        energy,
+        pulse_height_amplitude,
+        pulse_invariant,
+        mask_weight=None,
     ):
         """
         This initalizes the TimeTaggedEvent class and allows for event data to be accessed easily.
@@ -78,7 +79,9 @@ class TimeTaggedEvents(object):
         event_file = Path(event_file).expanduser().resolve()
 
         if not event_file.exists():
-            raise ValueError(f"The event file passed in to be read {event_file} does not seem to exist.")
+            raise ValueError(
+                f"The event file passed in to be read {event_file} does not seem to exist."
+            )
 
         # iteratively read in the data with units
         all_data = {}

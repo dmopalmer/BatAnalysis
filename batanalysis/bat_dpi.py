@@ -36,18 +36,18 @@ class BatDPI(DetectorPlaneHistogram):
     """
 
     def __init__(
-            self,
-            dpi_file=None,
-            event_file=None,
-            detector_quality_file=None,
-            event_data=None,
-            input_dict=None,
-            recalc=False,
-            load_dir=None,
-            tmin=None,
-            tmax=None,
-            emin=None,
-            emax=None,
+        self,
+        dpi_file=None,
+        event_file=None,
+        detector_quality_file=None,
+        event_data=None,
+        input_dict=None,
+        recalc=False,
+        load_dir=None,
+        tmin=None,
+        tmax=None,
+        emin=None,
+        emax=None,
     ):
         """
         This method initalizes the Detector Plane Image (DPI) data product. This can be initalized based on the
@@ -108,10 +108,14 @@ class BatDPI(DetectorPlaneHistogram):
                 )
 
         if detector_quality_file is not None:
-            self.detector_quality_file = Path(detector_quality_file).expanduser().resolve()
+            self.detector_quality_file = (
+                Path(detector_quality_file).expanduser().resolve()
+            )
             if not self.detector_quality_file.exists():
-                raise ValueError(f"The specified detector quality mask file {self.detector_quality_file} does not seem "
-                                 f"to exist. Please double check that it does.")
+                raise ValueError(
+                    f"The specified detector quality mask file {self.detector_quality_file} does not seem "
+                    f"to exist. Please double check that it does."
+                )
         else:
             self.detector_quality_file = None
             # warnings.warn("No detector quality mask file has been specified. The resulting DPI object "
@@ -268,7 +272,9 @@ class BatDPI(DetectorPlaneHistogram):
             for i in range(len(dpi_data)):
                 self.data["DPH_COUNTS"][i, :, :] = dpi_data[i].data
                 self.data["TIME"][i] = dpi_headers[i]["TSTART"]
-                self.data["EXPOSURE"][i] = dpi_headers[i]["TSTOP"] - dpi_headers[i]["TSTART"]
+                self.data["EXPOSURE"][i] = (
+                    dpi_headers[i]["TSTOP"] - dpi_headers[i]["TSTART"]
+                )
 
             # apply units
             self.data["DPH_COUNTS"] *= image_unit
@@ -295,30 +301,30 @@ class BatDPI(DetectorPlaneHistogram):
         self.tbins["TIME_START"] = np.unique(self.data["TIME"])
         self.tbins["TIME_STOP"] = np.unique(self.data["TIME"] + self.data["EXPOSURE"])
         self.tbins["TIME_CENT"] = 0.5 * (
-                self.tbins["TIME_START"] + self.tbins["TIME_STOP"]
+            self.tbins["TIME_START"] + self.tbins["TIME_STOP"]
         )
 
         # see if we need to reshape the DPIs for creation of the Histogram object
         if np.shape(self.data["DPH_COUNTS"]) != (
-                self.tbins["TIME_START"].size,
-                *self.data["DPH_COUNTS"].shape[1:],
-                self.ebins["E_MIN"].size,
+            self.tbins["TIME_START"].size,
+            *self.data["DPH_COUNTS"].shape[1:],
+            self.ebins["E_MIN"].size,
         ):
             new_array = (
-                    np.zeros(
-                        (
-                            self.tbins["TIME_START"].size,
-                            *self.data["DPH_COUNTS"].shape[1:],
-                            self.ebins["E_MIN"].size,
-                        ),
-                    )
-                    * self.data["DPH_COUNTS"].unit
+                np.zeros(
+                    (
+                        self.tbins["TIME_START"].size,
+                        *self.data["DPH_COUNTS"].shape[1:],
+                        self.ebins["E_MIN"].size,
+                    ),
+                )
+                * self.data["DPH_COUNTS"].unit
             )
 
             for j in range(self.ebins["E_MIN"].size):
                 new_array[:, :, :, j] = self.data["DPH_COUNTS"][
-                                        j:: self.ebins["E_MIN"].size, :, :
-                                        ]
+                    j :: self.ebins["E_MIN"].size, :, :
+                ]
 
             self.data["DPH_COUNTS"] = new_array
 
@@ -390,7 +396,7 @@ class BatDPI(DetectorPlaneHistogram):
                     if "=" not in values:
                         # this belongs with the previous parameter and is a line continuation
                         default_params_dict[old_parameter] = (
-                                default_params_dict[old_parameter] + values[-1]
+                            default_params_dict[old_parameter] + values[-1]
                         )
                         # assume that we need to keep appending to the previous parameter
                     else:
@@ -434,11 +440,13 @@ class BatDPI(DetectorPlaneHistogram):
 
             else:
                 # make sure that both emin and emax are defined and have the same number of elements
-                if (emin is None and emax is not None) or (emax is None and emin is not None):
-                    raise ValueError('Both emin and emax must be defined.')
+                if (emin is None and emax is not None) or (
+                    emax is None and emin is not None
+                ):
+                    raise ValueError("Both emin and emax must be defined.")
 
                 if emin.size != emax.size:
-                    raise ValueError('Both emin and emax must have the same length.')
+                    raise ValueError("Both emin and emax must have the same length.")
 
                 if emin.shape == ():
                     emin = u.Quantity([emin])
@@ -450,14 +458,16 @@ class BatDPI(DetectorPlaneHistogram):
                 energybins.append(f"{min.value}-{max.value}")
 
             # create the full string
-            ebins = ','.join(energybins)
+            ebins = ",".join(energybins)
 
             # create a temp dict to hold the energy rebinning parameters to pass to heasoftpy. If things dont run
             # successfully then the updated parameter list will not be saved
             tmp_dpi_input_dict = self.dpi_input_dict.copy()
 
             # need to see if the energybins are different (and even need to be calculated), if so do the recalculation
-            if not np.array_equal(emin, self.ebins['E_MIN']) or not np.array_equal(emax, self.ebins['E_MAX']):
+            if not np.array_equal(emin, self.ebins["E_MIN"]) or not np.array_equal(
+                emax, self.ebins["E_MAX"]
+            ):
                 # the tmp_lc_input_dict wil need to be modified with new Energybins
                 tmp_dpi_input_dict["energybins"] = ebins
 
@@ -466,7 +476,9 @@ class BatDPI(DetectorPlaneHistogram):
 
                 # make sure that the dph_return was successful
                 if dpi_return.returncode != 0:
-                    raise RuntimeError(f'The creation of the DPI failed with message: {dpi_return.output}')
+                    raise RuntimeError(
+                        f"The creation of the DPI failed with message: {dpi_return.output}"
+                    )
                 else:
                     self.bat_dpi_result = dpi_return
                     self.dpi_input_dict = tmp_dpi_input_dict
@@ -484,8 +496,16 @@ class BatDPI(DetectorPlaneHistogram):
                     )
 
     @u.quantity_input(timebins=["time"], tmin=["time"], tmax=["time"])
-    def set_timebins(self, timebins=None, tmin=None, tmax=None, timebinalg="uniform", T0=None, is_relative=False,
-                     timedelta=np.timedelta64(0, 's')):
+    def set_timebins(
+        self,
+        timebins=None,
+        tmin=None,
+        tmax=None,
+        timebinalg="uniform",
+        T0=None,
+        is_relative=False,
+        timedelta=np.timedelta64(0, "s"),
+    ):
         """
         This method allows for the dynamic rebinning of the DPI in time.
 
@@ -524,8 +544,10 @@ class BatDPI(DetectorPlaneHistogram):
             raise ValueError("The is_relative parameter should be a boolean value.")
 
         if is_relative and T0 is None:
-            raise ValueError('The is_relative value is set to True however there is no T0 that is defined ' +
-                             '(ie the time from which the time bins are defined relative to is not specified).')
+            raise ValueError(
+                "The is_relative value is set to True however there is no T0 that is defined "
+                + "(ie the time from which the time bins are defined relative to is not specified)."
+            )
 
         # we can either rebin using the timebins that are already present in the histogram
         # OR we can rebin the event data
@@ -561,12 +583,14 @@ class BatDPI(DetectorPlaneHistogram):
                 pass
         else:
             # do error checking on tmin/tmax
-            if (tmin is None and tmax is not None) or (tmax is None and tmin is not None):
-                raise ValueError('Both tmin and tmax must be defined.')
+            if (tmin is None and tmax is not None) or (
+                tmax is None and tmin is not None
+            ):
+                raise ValueError("Both tmin and tmax must be defined.")
 
             if tmin is not None and tmax is not None:
                 if tmin.size != tmax.size:
-                    raise ValueError('Both tmin and tmax must have the same length.')
+                    raise ValueError("Both tmin and tmax must have the same length.")
 
             tmp_dpi_input_dict = self.dpi_input_dict.copy()
 
@@ -591,43 +615,47 @@ class BatDPI(DetectorPlaneHistogram):
                 else:
                     timebins += T0 * u.s
 
-            if (timebins is not None and timebins.size > 2):
+            if timebins is not None and timebins.size > 2:
                 # tmin is not None and tmax.size > 1 and
                 # already checked that tmin && tmax are not 1 and have the same size
                 # if they are defined and they are more than 1 element then we have a series of timebins otherwise we just have the
 
-                tmp_dpi_input_dict['tstart'] = "INDEF"
-                tmp_dpi_input_dict['tstop'] = "INDEF"
+                tmp_dpi_input_dict["tstart"] = "INDEF"
+                tmp_dpi_input_dict["tstop"] = "INDEF"
 
                 # start/stop times of the lightcurve
                 self.timebins_file = self._create_custom_timebins(timebins)
-                tmp_dpi_input_dict['timebinalg'] = "gti"
-                tmp_dpi_input_dict['gtifile'] = str(self.timebins_file)
+                tmp_dpi_input_dict["timebinalg"] = "gti"
+                tmp_dpi_input_dict["gtifile"] = str(self.timebins_file)
             else:
-                tmp_dpi_input_dict['gtifile'] = "NONE"
+                tmp_dpi_input_dict["gtifile"] = "NONE"
 
                 # should have everything that we need to do the rebinning for a uniform/snr related rebinning
                 # first need to update the tmp_lc_input_dict
                 if "uniform" in timebinalg or "snr" in timebinalg:
-                    tmp_dpi_input_dict['timebinalg'] = timebinalg
+                    tmp_dpi_input_dict["timebinalg"] = timebinalg
 
-                tmp_dpi_input_dict['timedel'] = timedelta / np.timedelta64(1, 's')  # convert to seconds
+                tmp_dpi_input_dict["timedel"] = timedelta / np.timedelta64(
+                    1, "s"
+                )  # convert to seconds
 
-                tmp_dpi_input_dict['tstart'] = "INDEF"
-                tmp_dpi_input_dict['tstop'] = "INDEF"
+                tmp_dpi_input_dict["tstart"] = "INDEF"
+                tmp_dpi_input_dict["tstop"] = "INDEF"
 
                 # see if we have the min/max times defined
-                if (tmin is not None and tmax.size == 1):
-                    tmp_dpi_input_dict['timedel'] = 0
-                    tmp_dpi_input_dict['tstart'] = timebins[0].value
-                    tmp_dpi_input_dict['tstop'] = timebins[1].value
+                if tmin is not None and tmax.size == 1:
+                    tmp_dpi_input_dict["timedel"] = 0
+                    tmp_dpi_input_dict["tstart"] = timebins[0].value
+                    tmp_dpi_input_dict["tstop"] = timebins[1].value
 
             # the DPH _call_batbinevt method ensures that  outtype = DPH and that clobber=YES
             dpi_return = self._call_batbinevt(tmp_dpi_input_dict)
 
             # make sure that the dph_return was successful
             if dpi_return.returncode != 0:
-                raise RuntimeError(f'The creation of the DPI failed with message: {dpi_return.output}')
+                raise RuntimeError(
+                    f"The creation of the DPI failed with message: {dpi_return.output}"
+                )
             else:
                 self.bat_dpi_result = dpi_return
                 self.dpi_input_dict = tmp_dpi_input_dict
@@ -685,10 +713,15 @@ class BatDPI(DetectorPlaneHistogram):
             new_name = self.dpi_file.name.replace("dpi", "gti")
             try:
                 # tryto put it in the gti directory
-                output_file = Path(*new_path[:self.dpi_file.parts.index('dpi')]).joinpath("gti").joinpath(
-                    new_name)
+                output_file = (
+                    Path(*new_path[: self.dpi_file.parts.index("dpi")])
+                    .joinpath("gti")
+                    .joinpath(new_name)
+                )
 
             except ValueError:
                 # otherwise just try to place it where the dph is with the gti suffix
                 output_file = self.dpi_file.parent.joinpath(new_name)
-        return create_gti_file(timebins, output_file, T0=None, is_relative=False, overwrite=True)
+        return create_gti_file(
+            timebins, output_file, T0=None, is_relative=False, overwrite=True
+        )

@@ -45,17 +45,17 @@ class BatDPH(DetectorPlaneHistogram):
     ]
 
     def __init__(
-            self,
-            dph_file=None,
-            event_file=None,
-            event_data=None,
-            input_dict=None,
-            recalc=False,
-            load_dir=None,
-            tmin=None,
-            tmax=None,
-            emin=None,
-            emax=None,
+        self,
+        dph_file=None,
+        event_file=None,
+        event_data=None,
+        input_dict=None,
+        recalc=False,
+        load_dir=None,
+        tmin=None,
+        tmax=None,
+        emin=None,
+        emax=None,
     ):
         """
         This method initalizes the Detector Plane Histogram (DPH) data product. This can be initalized based on the
@@ -257,7 +257,7 @@ class BatDPH(DetectorPlaneHistogram):
         self.tbins["TIME_START"] = self.data["TIME"]
         self.tbins["TIME_STOP"] = self.data["TIME"] + self.data["EXPOSURE"]
         self.tbins["TIME_CENT"] = 0.5 * (
-                self.tbins["TIME_START"] + self.tbins["TIME_STOP"]
+            self.tbins["TIME_START"] + self.tbins["TIME_STOP"]
         )
 
         # if self.dph_input_dict ==None, then we will need to try to read in the hisotry of parameters passed into
@@ -328,7 +328,7 @@ class BatDPH(DetectorPlaneHistogram):
                     if "=" not in values:
                         # this belongs with the previous parameter and is a line continuation
                         default_params_dict[old_parameter] = (
-                                default_params_dict[old_parameter] + values[-1]
+                            default_params_dict[old_parameter] + values[-1]
                         )
                         # assume that we need to keep appending to the previous parameter
                     else:
@@ -372,11 +372,13 @@ class BatDPH(DetectorPlaneHistogram):
 
             else:
                 # make sure that both emin and emax are defined and have the same number of elements
-                if (emin is None and emax is not None) or (emax is None and emin is not None):
-                    raise ValueError('Both emin and emax must be defined.')
+                if (emin is None and emax is not None) or (
+                    emax is None and emin is not None
+                ):
+                    raise ValueError("Both emin and emax must be defined.")
 
                 if emin.size != emax.size:
-                    raise ValueError('Both emin and emax must have the same length.')
+                    raise ValueError("Both emin and emax must have the same length.")
 
                 if emin.shape == ():
                     emin = u.Quantity([emin])
@@ -388,14 +390,16 @@ class BatDPH(DetectorPlaneHistogram):
                 energybins.append(f"{min.value}-{max.value}")
 
             # create the full string
-            ebins = ','.join(energybins)
+            ebins = ",".join(energybins)
 
             # create a temp dict to hold the energy rebinning parameters to pass to heasoftpy. If things dont run
             # successfully then the updated parameter list will not be saved
             tmp_dph_input_dict = self.dph_input_dict.copy()
 
             # need to see if the energybins are different (and even need to be calculated), if so do the recalculation
-            if not np.array_equal(emin, self.ebins['E_MIN']) or not np.array_equal(emax, self.ebins['E_MAX']):
+            if not np.array_equal(emin, self.ebins["E_MIN"]) or not np.array_equal(
+                emax, self.ebins["E_MAX"]
+            ):
                 # the tmp_lc_input_dict wil need to be modified with new Energybins
                 tmp_dph_input_dict["energybins"] = ebins
 
@@ -404,7 +408,9 @@ class BatDPH(DetectorPlaneHistogram):
 
                 # make sure that the dph_return was successful
                 if dph_return.returncode != 0:
-                    raise RuntimeError(f'The creation of the DPH failed with message: {dph_return.output}')
+                    raise RuntimeError(
+                        f"The creation of the DPH failed with message: {dph_return.output}"
+                    )
                 else:
                     self.bat_dph_result = dph_return
                     self.dph_input_dict = tmp_dph_input_dict
@@ -422,8 +428,16 @@ class BatDPH(DetectorPlaneHistogram):
                     )
 
     @u.quantity_input(timebins=["time"], tmin=["time"], tmax=["time"])
-    def set_timebins(self, timebins=None, tmin=None, tmax=None, timebinalg="uniform", T0=None, is_relative=False,
-                     timedelta=np.timedelta64(0, 's')):
+    def set_timebins(
+        self,
+        timebins=None,
+        tmin=None,
+        tmax=None,
+        timebinalg="uniform",
+        T0=None,
+        is_relative=False,
+        timedelta=np.timedelta64(0, "s"),
+    ):
         """
         This method allows for the dynamic rebinning of the DPH in time.
 
@@ -459,8 +473,10 @@ class BatDPH(DetectorPlaneHistogram):
             raise ValueError("The is_relative parameter should be a boolean value.")
 
         if is_relative and T0 is None:
-            raise ValueError('The is_relative value is set to True however there is no T0 that is defined ' +
-                             '(ie the time from which the time bins are defined relative to is not specified).')
+            raise ValueError(
+                "The is_relative value is set to True however there is no T0 that is defined "
+                + "(ie the time from which the time bins are defined relative to is not specified)."
+            )
 
         # we can either rebin using the timebins that are already present in the histogram
         # OR we can rebin the event data
@@ -496,12 +512,14 @@ class BatDPH(DetectorPlaneHistogram):
                 pass
         else:
             # do error checking on tmin/tmax
-            if (tmin is None and tmax is not None) or (tmax is None and tmin is not None):
-                raise ValueError('Both tmin and tmax must be defined.')
+            if (tmin is None and tmax is not None) or (
+                tmax is None and tmin is not None
+            ):
+                raise ValueError("Both tmin and tmax must be defined.")
 
             if tmin is not None and tmax is not None:
                 if tmin.size != tmax.size:
-                    raise ValueError('Both tmin and tmax must have the same length.')
+                    raise ValueError("Both tmin and tmax must have the same length.")
 
             tmp_dph_input_dict = self.dph_input_dict.copy()
 
@@ -526,43 +544,47 @@ class BatDPH(DetectorPlaneHistogram):
                 else:
                     timebins += T0 * u.s
 
-            if (timebins is not None and timebins.size > 2):
+            if timebins is not None and timebins.size > 2:
                 # tmin is not None and tmax.size > 1 and
                 # already checked that tmin && tmax are not 1 and have the same size
                 # if they are defined and they are more than 1 element then we have a series of timebins otherwise we just have the
 
-                tmp_dph_input_dict['tstart'] = "INDEF"
-                tmp_dph_input_dict['tstop'] = "INDEF"
+                tmp_dph_input_dict["tstart"] = "INDEF"
+                tmp_dph_input_dict["tstop"] = "INDEF"
 
                 # start/stop times of the lightcurve
                 self.timebins_file = self._create_custom_timebins(timebins)
-                tmp_dph_input_dict['timebinalg'] = "gti"
-                tmp_dph_input_dict['gtifile'] = str(self.timebins_file)
+                tmp_dph_input_dict["timebinalg"] = "gti"
+                tmp_dph_input_dict["gtifile"] = str(self.timebins_file)
             else:
-                tmp_dph_input_dict['gtifile'] = "NONE"
+                tmp_dph_input_dict["gtifile"] = "NONE"
 
                 # should have everything that we need to do the rebinning for a uniform/snr related rebinning
                 # first need to update the tmp_lc_input_dict
                 if "uniform" in timebinalg or "snr" in timebinalg:
-                    tmp_dph_input_dict['timebinalg'] = timebinalg
+                    tmp_dph_input_dict["timebinalg"] = timebinalg
 
-                tmp_dph_input_dict['timedel'] = timedelta / np.timedelta64(1, 's')  # convert to seconds
+                tmp_dph_input_dict["timedel"] = timedelta / np.timedelta64(
+                    1, "s"
+                )  # convert to seconds
 
-                tmp_dph_input_dict['tstart'] = "INDEF"
-                tmp_dph_input_dict['tstop'] = "INDEF"
+                tmp_dph_input_dict["tstart"] = "INDEF"
+                tmp_dph_input_dict["tstop"] = "INDEF"
 
                 # see if we have the min/max times defined
-                if (tmin is not None and tmax.size == 1):
-                    tmp_dph_input_dict['timedel'] = 0
-                    tmp_dph_input_dict['tstart'] = timebins[0].value
-                    tmp_dph_input_dict['tstop'] = timebins[1].value
+                if tmin is not None and tmax.size == 1:
+                    tmp_dph_input_dict["timedel"] = 0
+                    tmp_dph_input_dict["tstart"] = timebins[0].value
+                    tmp_dph_input_dict["tstop"] = timebins[1].value
 
             # the DPH _call_batbinevt method ensures that  outtype = DPH and that clobber=YES
             dph_return = self._call_batbinevt(tmp_dph_input_dict)
 
             # make sure that the dph_return was successful
             if dph_return.returncode != 0:
-                raise RuntimeError(f'The creation of the DPH failed with message: {dph_return.output}')
+                raise RuntimeError(
+                    f"The creation of the DPH failed with message: {dph_return.output}"
+                )
             else:
                 self.bat_dph_result = dph_return
                 self.dph_input_dict = tmp_dph_input_dict
@@ -604,7 +626,9 @@ class BatDPH(DetectorPlaneHistogram):
                     # header = f[1].header
                     data = f[1].data
                     data_columns = [
-                        i for i in data.columns if i.name not in fits_filename._exclude_data_cols
+                        i
+                        for i in data.columns
+                        if i.name not in fits_filename._exclude_data_cols
                     ]
                     temp_t_table = fits.FITS_rec.from_columns(
                         data_columns, nrows=fits_filename.tbins["TIME_START"].size
@@ -614,10 +638,12 @@ class BatDPH(DetectorPlaneHistogram):
                         if "DPH_COUNT" not in i.name:
                             temp_t_table[i.name] = fits_filename.data[i.name]
                         else:
-                            for time_idx in range(fits_filename.tbins["TIME_START"].size):
-                                temp_t_table[i.name][time_idx] = fits_filename.data[i.name][
-                                    time_idx
-                                ]
+                            for time_idx in range(
+                                fits_filename.tbins["TIME_START"].size
+                            ):
+                                temp_t_table[i.name][time_idx] = fits_filename.data[
+                                    i.name
+                                ][time_idx]
 
                     f[1].data = temp_t_table
 
@@ -637,7 +663,9 @@ class BatDPH(DetectorPlaneHistogram):
 
                     # code to modify the header info pertaining to the start/stop time
                     for i in f:
-                        i.header["TSTART"] = fits_filename.tbins["TIME_START"].min().value
+                        i.header["TSTART"] = (
+                            fits_filename.tbins["TIME_START"].min().value
+                        )
                         i.header["TSTOP"] = fits_filename.tbins["TIME_STOP"].max().value
 
                     f.flush()
@@ -697,11 +725,15 @@ class BatDPH(DetectorPlaneHistogram):
             new_name = self.dph_file.name.replace("dph", "gti")
             try:
                 # tryto put it in the gti directory
-                output_file = Path(*new_path[:self.dph_file.parts.index('survey')]).joinpath(new_name)
+                output_file = Path(
+                    *new_path[: self.dph_file.parts.index("survey")]
+                ).joinpath(new_name)
             except ValueError:
                 # otherwise just try to place it where the dph is with the gti suffix
                 output_file = self.dph_file.parent.joinpath(new_name)
-        return create_gti_file(timebins, output_file, T0=None, is_relative=False, overwrite=True)
+        return create_gti_file(
+            timebins, output_file, T0=None, is_relative=False, overwrite=True
+        )
 
     def create_DPI(self):
         """
@@ -711,27 +743,40 @@ class BatDPH(DetectorPlaneHistogram):
         :return:
         """
 
-        raise NotImplementedError("Creating a DPI from a DPH has not yet been implemented.")
+        raise NotImplementedError(
+            "Creating a DPI from a DPH has not yet been implemented."
+        )
 
         # call baterebin (batsurvey-erebin calls this for many DPHs)
         baterebin_return = self._call_baterebin()
 
         # make sure that the dph_return was successful
         if baterebin_return.returncode != 0:
-            raise RuntimeError(f'The energy rebinning of the DPH failed with message: {baterebin_return.output}')
+            raise RuntimeError(
+                f"The energy rebinning of the DPH failed with message: {baterebin_return.output}"
+            )
 
         # now get the GTIs
         batsurvey_gti_return = self._call_batsurvey_gti()
 
         # make sure that the dph_return was successful
         if batsurvey_gti_return.returncode != 0:
-            raise RuntimeError(f'The GTI filtering of the DPH failed with message: {baterebin_return.output}')
+            raise RuntimeError(
+                f"The GTI filtering of the DPH failed with message: {baterebin_return.output}"
+            )
 
         # cala batbinevt to go from DPH to DPI
 
         return BatDPI()
 
-    def _call_baterebin(self, infile=None, outfile=None, gain_offset_file=None, output_detmask=None, input_dict=None):
+    def _call_baterebin(
+        self,
+        infile=None,
+        outfile=None,
+        gain_offset_file=None,
+        output_detmask=None,
+        input_dict=None,
+    ):
         """
         Calls heasoftpy's baterebin with an error wrapper, ensures that this bins the DPH in energy with non-linear
         energy corrections applied. In the batsurvey code, batsurvey-erebins is called to process multiple DPHs
@@ -763,10 +808,14 @@ class BatDPH(DetectorPlaneHistogram):
             input_dict["outfile"] = str(outfile)
 
             if gain_offset_file is None:
-                gain_offset_files = sorted(self.dph_file.parents[1].joinpath("hk").glob("*go*"))
+                gain_offset_files = sorted(
+                    self.dph_file.parents[1].joinpath("hk").glob("*go*")
+                )
                 if len(gain_offset_files) != 1:
-                    raise ValueError("More than 1 gain/offset file was found: {gain_offset_files}. Please specify which"
-                                     "should be passed into baterebin.")
+                    raise ValueError(
+                        "More than 1 gain/offset file was found: {gain_offset_files}. Please specify which"
+                        "should be passed into baterebin."
+                    )
                 else:
                     gain_offset_file = gain_offset_files[0]
             input_dict["calfile"] = str(gain_offset_file)
@@ -780,16 +829,22 @@ class BatDPH(DetectorPlaneHistogram):
 
         else:
             # make sure that the necessary parameters are in teh input dict
-            for i, j, k in zip(["infile", "outfile", "calfile"], [infile, outfile, gain_offset_file],
-                               ["infile", "outfile", "gain_offset_file"]):
+            for i, j, k in zip(
+                ["infile", "outfile", "calfile"],
+                [infile, outfile, gain_offset_file],
+                ["infile", "outfile", "gain_offset_file"],
+            ):
                 if i not in input_dict.keys() and j is None:
                     raise ValueError(
-                        f"There needs to be an {i} key with an associated value included in the input_dict or {k} needs to be passed in.")
+                        f"There needs to be an {i} key with an associated value included in the input_dict or {k} needs to be passed in."
+                    )
 
         input_dict["clobber"] = "YES"
 
         # apply the default survey energy bins
-        input_dict["ebins"] = "0-14,14-20,20-24,24-35,35-50,50-75,75-100,100-150,150-195,195-350"
+        input_dict["ebins"] = (
+            "0-14,14-20,20-24,24-35,35-50,50-75,75-100,100-150,150-195,195-350"
+        )
 
         try:
             return baterebin(**input_dict)
@@ -799,7 +854,9 @@ class BatDPH(DetectorPlaneHistogram):
                 f"The call to Heasoft baterebin failed with inputs {input_dict}."
             )
 
-    def _call_batsurvey_gti(self, input_directory=None, output_directory=None, input_dict=None):
+    def _call_batsurvey_gti(
+        self, input_directory=None, output_directory=None, input_dict=None
+    ):
         """
         Call batsurvey-gti which includes many time filters such as times when the umber of enabled detectors were
         greater than some amount.
@@ -828,11 +885,15 @@ class BatDPH(DetectorPlaneHistogram):
         else:
             passed_keys = input_dict.keys()
 
-            for i, j, k in zip(["indir", "outdir"], [input_directory, output_directory],
-                               ["input_directory", "output_directory"]):
+            for i, j, k in zip(
+                ["indir", "outdir"],
+                [input_directory, output_directory],
+                ["input_directory", "output_directory"],
+            ):
                 if i not in input_dict.keys() and j is None:
                     raise ValueError(
-                        f"There needs to be an {i} key with an associated value included in the input_dict or {k} needs to be passed in.")
+                        f"There needs to be an {i} key with an associated value included in the input_dict or {k} needs to be passed in."
+                    )
 
         try:
             return batsurvey_gti(**input_dict)

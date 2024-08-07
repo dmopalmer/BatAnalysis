@@ -1,6 +1,7 @@
 """
 This file is meant to hold the functions that allow users to create mosaic-ed images for survey data
 """
+
 import shutil
 from pathlib import Path
 
@@ -92,7 +93,7 @@ def interpolate(values, vtx, wts, fill_value=np.nan):
 
 
 def make_skygrids(
-        center_resolution=2.8, galactic_boundaries=[48, 48], savedirectory=None
+    center_resolution=2.8, galactic_boundaries=[48, 48], savedirectory=None
 ):
     """
     Creates a skygrid based on galactic coordinates being split up into 6 facets. The skygrids are created using the
@@ -265,9 +266,7 @@ def merge_outventory(survey_list, savedir=None):
     # input_filename.unlink()
     # Above IS HEASOFT STUFF
 
-    output_file = savedir.joinpath(
-        "outventory_all.fits"
-    )
+    output_file = savedir.joinpath("outventory_all.fits")
 
     shutil.copy(survey_list[0].result_dir.joinpath("stats_point.fits"), output_file)
     for i in survey_list[1:]:
@@ -284,7 +283,7 @@ def merge_outventory(survey_list, savedir=None):
     # now sort the file by time
     with fits.open(output_file, mode="update") as hdul:
         hdu = hdul[1]
-        idx = np.argsort(hdu.data['TSTART'])
+        idx = np.argsort(hdu.data["TSTART"])
         hdu.data = hdu.data[idx]
         hdul.flush()
 
@@ -309,8 +308,10 @@ def select_outventory(outventory_file, start_met, end_met):
     with fits.open(outventory_file) as f:
         # identify the lines with the times of interest/images that are good and have the comparison be broadcastable
         idx = np.where(
-            (f[1].data["TSTART"][..., None] >= start_met) & (f[1].data["TSTART"][..., None] < end_met) &
-            (f[1].data["IMAGE_STATUS"][..., None] == True))
+            (f[1].data["TSTART"][..., None] >= start_met)
+            & (f[1].data["TSTART"][..., None] < end_met)
+            & (f[1].data["IMAGE_STATUS"][..., None] == True)
+        )
 
         # save the headers of the original outventory file and then copy them to the new output file
         hdu = f[1]
@@ -319,14 +320,14 @@ def select_outventory(outventory_file, start_met, end_met):
 
 
 def group_outventory(
-        outventory_file,
-        binning_timedelta=None,
-        start_datetime=None,
-        end_datetime=None,
-        recalc=False,
-        mjd_savedir=False,
-        custom_timebins=None,
-        save_group_outventory=True
+    outventory_file,
+    binning_timedelta=None,
+    start_datetime=None,
+    end_datetime=None,
+    recalc=False,
+    mjd_savedir=False,
+    custom_timebins=None,
+    save_group_outventory=True,
 ):
     """
     This function groups the observations listed in an outventory file together based on time bins that each observation
@@ -395,7 +396,6 @@ def group_outventory(
                     "The end_datetime variable needs to be an astropy Time object."
                 )
 
-
     else:
         if type(custom_timebins) is not Time and type(custom_timebins) is not list:
             raise ValueError(
@@ -425,7 +425,10 @@ def group_outventory(
             # launch_time = Time("2004-12-01")
             # start_datetime=launch_time
             with fits.open(str(outventory_file)) as file:
-                t = [Time(i, format="isot", scale="utc") for i in file[1].data["DATE_OBS"]]
+                t = [
+                    Time(i, format="isot", scale="utc")
+                    for i in file[1].data["DATE_OBS"]
+                ]
 
             # get the min date and get the ymdhms to modify
             t = Time(t).min()
@@ -442,8 +445,9 @@ def group_outventory(
             with fits.open(outventory_file) as f:
                 end_datetime = Time(met2utc(f[1].data["TSTART"].max()))
 
-        if np.dtype(binning_timedelta) == np.dtype(np.timedelta64(1, 'M')) and binning_timedelta == np.timedelta64(1,
-                                                                                                                   'M'):
+        if np.dtype(binning_timedelta) == np.dtype(
+            np.timedelta64(1, "M")
+        ) and binning_timedelta == np.timedelta64(1, "M"):
             # if the user wants months, need to specify each year, month and the number of days
             years = [
                 i
@@ -457,25 +461,25 @@ def group_outventory(
                 for m in months:
                     if start_datetime.ymdhms["year"] == end_datetime.ymdhms["year"]:
                         if (
-                                m >= start_datetime.ymdhms["month"]
-                                and m <= end_datetime.ymdhms["month"] + 1
-                                and y == start_datetime.ymdhms["year"]
+                            m >= start_datetime.ymdhms["month"]
+                            and m <= end_datetime.ymdhms["month"] + 1
+                            and y == start_datetime.ymdhms["year"]
                         ):
                             months_list.append("%d-%02d" % (y, m))
                     else:
                         if (
-                                m >= start_datetime.ymdhms["month"]
-                                and y == start_datetime.ymdhms["year"]
+                            m >= start_datetime.ymdhms["month"]
+                            and y == start_datetime.ymdhms["year"]
                         ):
                             months_list.append("%d-%02d" % (y, m))
                         elif (
-                                m <= end_datetime.ymdhms["month"] + 1
-                                and y == end_datetime.ymdhms["year"]
+                            m <= end_datetime.ymdhms["month"] + 1
+                            and y == end_datetime.ymdhms["year"]
                         ):
                             months_list.append("%d-%02d" % (y, m))  # for the edge case
                         elif (
-                                y > start_datetime.ymdhms["year"]
-                                and y < end_datetime.ymdhms["year"]
+                            y > start_datetime.ymdhms["year"]
+                            and y < end_datetime.ymdhms["year"]
                         ):
                             months_list.append("%d-%02d" % (y, m))
 
@@ -506,9 +510,7 @@ def group_outventory(
     # return the time_bins for the user to check them
     if save_group_outventory:
         # create the folder that will hold the outventory files for each time range of interest
-        savedir = outventory_file.parent.joinpath(
-            "grouped_outventory"
-        )
+        savedir = outventory_file.parent.joinpath("grouped_outventory")
 
         # see if the savedir exists, if it does, then we dont have to do all of these calculations again
         if not savedir.exists() or recalc:
@@ -539,10 +541,16 @@ def group_outventory(
                     end = time_bins[i][1, 0]
 
                     # convert the start time bins edges to met times
-                    start_met = [sbu.datetime2met(j.datetime, correct=True) for j in time_bins[i][0, :]]
+                    start_met = [
+                        sbu.datetime2met(j.datetime, correct=True)
+                        for j in time_bins[i][0, :]
+                    ]
 
                     # convert the end time bins edges to met times
-                    end_met = [sbu.datetime2met(j.datetime, correct=True) for j in time_bins[i][1, :]]
+                    end_met = [
+                        sbu.datetime2met(j.datetime, correct=True)
+                        for j in time_bins[i][1, :]
+                    ]
 
                 select_outventory(outventory_file, start_met, end_met)
 
@@ -557,14 +565,13 @@ def group_outventory(
                 if not mjd_savedir:
                     savefile = savedir.joinpath(
                         output_file.name.replace(
-                            "_sel.fits", f"_{start.datetime64.astype('datetime64[D]')}.fits"
+                            "_sel.fits",
+                            f"_{start.datetime64.astype('datetime64[D]')}.fits",
                         )
                     )
                 else:
                     savefile = savedir.joinpath(
-                        output_file.name.replace(
-                            "_sel.fits", f"_{start.mjd}.fits"
-                        )
+                        output_file.name.replace("_sel.fits", f"_{start.mjd}.fits")
                     )
 
                 output_file.rename(savefile)
@@ -631,12 +638,8 @@ def read_skygrids(savedirectory=None):
         ra_string = "ra_" + string + ".img"
         dec_string = "dec_" + string + ".img"
 
-        ra_file = dir.joinpath("data").joinpath(
-            ra_string
-        )
-        dec_file = dir.joinpath("data").joinpath(
-            dec_string
-        )
+        ra_file = dir.joinpath("data").joinpath(ra_string)
+        dec_file = dir.joinpath("data").joinpath(dec_string)
 
         file = fits.open(str(ra_file))
         ra_skygrid[:, :, i] = file[0].data
@@ -724,9 +727,7 @@ def read_correctionsmap():
     # get the directory that the data directory is located in
     dir = Path(__file__).parent
 
-    file_string = dir.joinpath("data").joinpath(
-        _cimgfile
-    )
+    file_string = dir.joinpath("data").joinpath(_cimgfile)
 
     # create array to hold data, already know sizes of grids from looking at file
     corrections_map = np.zeros((954, 1760, _nebands))
@@ -794,11 +795,11 @@ def compute_statistics_map(chi_sq, nbatdet, ra_pnt, dec_pnt, pa_pnt, tstart):
     for i in range(_nebands):
         if i == 0:
             mask = (red_chi2[:, i] < fudge * sco_xtra_chi2) & (
-                    red_chi2[:, i] > _chilothresh
+                red_chi2[:, i] > _chilothresh
             )
         else:
             mask = (
-                    mask & (red_chi2[:, i] > _chilothresh) & (red_chi2[:, i] < _chihithresh)
+                mask & (red_chi2[:, i] > _chilothresh) & (red_chi2[:, i] < _chihithresh)
             )
 
     # include whether Sco is the object corresponding to the pointing. If it is, we want to exclude this pointing ID,
@@ -818,11 +819,11 @@ def compute_statistics_map(chi_sq, nbatdet, ra_pnt, dec_pnt, pa_pnt, tstart):
 
 
 def write_mosaic(
-        img,
-        header,
-        filename_base,
-        emin=[14.0, 20.0, 24.0, 35.0, 50.0, 75.0, 100.0, 150.0, 14.0],
-        emax=[20.0, 24.0, 35.0, 50.0, 75.0, 100.0, 150.0, 195.0, 195.0],
+    img,
+    header,
+    filename_base,
+    emin=[14.0, 20.0, 24.0, 35.0, 50.0, 75.0, 100.0, 150.0, 14.0],
+    emax=[20.0, 24.0, 35.0, 50.0, 75.0, 100.0, 150.0, 195.0, 195.0],
 ):
     """
     Write out the intermediate mosaic images to fits files.
@@ -1064,13 +1065,13 @@ def finalize_mosaic(intermediate_mosaic_directory):
 
 
 def create_mosaics(
-        outventory_file,
-        time_bins,
-        survey_list,
-        catalog_file=None,
-        total_mosaic_savedir=None,
-        recalc=False,
-        verbose=True,
+    outventory_file,
+    time_bins,
+    survey_list,
+    catalog_file=None,
+    total_mosaic_savedir=None,
+    recalc=False,
+    verbose=True,
 ):
     """
     Creates the mosaiced images for specified time bins and a total mosaic image that is "time-integrated" across all
@@ -1178,15 +1179,15 @@ def create_mosaics(
 
 
 def _mosaic_loop(
-        outventory_file,
-        start,
-        end,
-        corrections_map,
-        ra_skygrid,
-        dec_skygrid,
-        survey_list,
-        recalc=False,
-        verbose=True,
+    outventory_file,
+    start,
+    end,
+    corrections_map,
+    ra_skygrid,
+    dec_skygrid,
+    survey_list,
+    recalc=False,
+    verbose=True,
 ):
     """
     The loop that computes the mosaiced images for a time bin of interest. It sums up all the BAT survey observations
@@ -1221,11 +1222,11 @@ def _mosaic_loop(
         print(f"Working on time bins from {start} to {end}.\n")
 
     # get the name of the file with binned outventory info and where its saved
-    savedir = outventory_file.parent.joinpath(
-        "grouped_outventory"
-    )
+    savedir = outventory_file.parent.joinpath("grouped_outventory")
     output_file = savedir.joinpath(
-        outventory_file.name.replace(".fits", f"_{start.datetime64.astype('datetime64[D]')}.fits")
+        outventory_file.name.replace(
+            ".fits", f"_{start.datetime64.astype('datetime64[D]')}.fits"
+        )
     )
     # see if we need to use the mjd time format
     if not output_file.exists():
@@ -1238,9 +1239,7 @@ def _mosaic_loop(
         f"mosaic_{start.datetime64.astype('datetime64[D]')}"
     )
     if not img_dir.exists():
-        img_dir = outventory_file.parent.joinpath(
-            f"mosaic_{start.mjd}"
-        )
+        img_dir = outventory_file.parent.joinpath(f"mosaic_{start.mjd}")
 
     # see if there is a .batsurvey file, if it doesnt exist or if we want to recalc things then go through the full loop
     if not img_dir.joinpath("batsurvey.pickle").exists() or recalc:
@@ -1293,10 +1292,10 @@ def _mosaic_loop(
 
             # test that we have good image statistics
             if (
-                    (chi_mask[j] == 0)
-                    or (grouped_outventory_data["NBATDETS"][j] <= 0)
-                    or (grouped_outventory_data["IMAGE_STATUS"][j] == False)
-                    or (grouped_outventory_data["EXPOSURE"][j] <= 0)
+                (chi_mask[j] == 0)
+                or (grouped_outventory_data["NBATDETS"][j] <= 0)
+                or (grouped_outventory_data["IMAGE_STATUS"][j] == False)
+                or (grouped_outventory_data["EXPOSURE"][j] <= 0)
             ):
                 if verbose:
                     print(
@@ -1319,9 +1318,7 @@ def _mosaic_loop(
                     # get the directory of the observation ID where the survey result lives
                     batsurvey_result_dir = survey_list[surveylist_idx].result_dir
 
-                    data_directory = batsurvey_result_dir.joinpath(
-                        pointing_id
-                    )
+                    data_directory = batsurvey_result_dir.joinpath(pointing_id)
 
                     ncleaniter = survey_list[surveylist_idx].batsurvey_result.params[
                         "ncleaniter"
@@ -1370,16 +1367,16 @@ def _mosaic_loop(
                         pointing_vimg_corr = np.zeros_like(pointing_vimg)
                         pointing_simg_corr = np.zeros_like(pointing_vimg)
                         pointing_vimg_corr[:, :, :-1] = (
-                                pointing_vimg[:, :, :-1] / corrections_map
+                            pointing_vimg[:, :, :-1] / corrections_map
                         )
                         pointing_simg_corr[:, :, :-1] = (
-                                pointing_simg[:, :, :-1] / corrections_map
+                            pointing_simg[:, :, :-1] / corrections_map
                         )
 
                         # construct the total energy images for variance and flux, the zeros in last array dont affect
                         # calculations of the total values
                         pointing_vimg_corr[:, :, -1] = np.sqrt(
-                            np.sum(pointing_vimg_corr ** 2, axis=2)
+                            np.sum(pointing_vimg_corr**2, axis=2)
                         )
                         pointing_simg_corr[:, :, -1] = pointing_simg_corr.sum(axis=2)
 
@@ -1387,12 +1384,12 @@ def _mosaic_loop(
                         energy_quality_mask = np.zeros_like(pointing_vimg_corr)
                         good_idx = np.where(
                             (
-                                    np.repeat(
-                                        pointing_pimg[:, :, np.newaxis],
-                                        pointing_vimg_corr.shape[-1],
-                                        axis=2,
-                                    )
-                                    > _pcodethresh
+                                np.repeat(
+                                    pointing_pimg[:, :, np.newaxis],
+                                    pointing_vimg_corr.shape[-1],
+                                    axis=2,
+                                )
+                                > _pcodethresh
                             )
                             & (pointing_vimg_corr > 0)
                             & np.isfinite(pointing_simg_corr)
@@ -1402,20 +1399,20 @@ def _mosaic_loop(
 
                         # make the intermediate maps for each energy and for the total energy
                         interm_pointing_eimg = (
-                                energy_quality_mask * pointing_exposure
+                            energy_quality_mask * pointing_exposure
                         )  # Exposure map
                         interm_pointing_pimg = (
-                                pointing_pimg[:, :, np.newaxis]
-                                * energy_quality_mask
-                                * pointing_exposure
+                            pointing_pimg[:, :, np.newaxis]
+                            * energy_quality_mask
+                            * pointing_exposure
                         )  # partial coding map
                         interm_pointing_vimg = (
-                                energy_quality_mask / (pointing_vimg_corr + 1e-10) ** 2
+                            energy_quality_mask / (pointing_vimg_corr + 1e-10) ** 2
                         )  # Convert to 1 / variance
                         interm_pointing_simg = (
-                                pointing_simg_corr
-                                * energy_quality_mask
-                                * interm_pointing_vimg
+                            pointing_simg_corr
+                            * energy_quality_mask
+                            * interm_pointing_vimg
                         )  # variance weighted sky flux
 
                         # need to compute the x/y position for each RA/DEC point in the sky map using the new
@@ -1441,8 +1438,8 @@ def _mosaic_loop(
                         # need to verify that the eimg and pimg maps are energy independent, in idl code only does this
                         # for te first energy iteration
                         grid_x, grid_y = np.mgrid[
-                                         0: pointing_pimg.shape[0], 0: pointing_pimg.shape[1]
-                                         ]
+                            0 : pointing_pimg.shape[0], 0 : pointing_pimg.shape[1]
+                        ]
                         points = np.array([grid_x.flatten(), grid_y.flatten()])
                         values = interm_pointing_eimg[:, :, 0]
                         values[np.isnan(values)] = 0
@@ -1464,9 +1461,9 @@ def _mosaic_loop(
                         # found that it took 3247.2622033880034 s versus 722.239518339 s
 
                         values = interm_pointing_pimg[:, :, 0]
-                        values[
-                            np.isnan(values)
-                        ] = 0  # if there are nan values in the images, this can mess up the interpolation
+                        values[np.isnan(values)] = (
+                            0  # if there are nan values in the images, this can mess up the interpolation
+                        )
 
                         test = interpolate(values.flatten(), vtx, wts, fill_value=0)
                         pimg[pixel_idx] += test
@@ -1632,12 +1629,8 @@ def merge_mosaics(intermediate_mosaic_dir_list, savedir=None):
     # create the directory that will hold the total mosaiced images,
     # get the directory to create the folder that we will put the images
     if savedir is None:
-        savedir = intermediate_mosaic_dir_list[
-            0
-        ].parent
-        total_dir = savedir.joinpath(
-            "total_mosaic"
-        )
+        savedir = intermediate_mosaic_dir_list[0].parent
+        total_dir = savedir.joinpath("total_mosaic")
     else:
         total_dir = savedir
 
@@ -1669,9 +1662,7 @@ def merge_mosaics(intermediate_mosaic_dir_list, savedir=None):
             string = "c%d_%s" % (j, _proj)
 
             # open the pimg and add it to the array and accumulate the exposure and other header info
-            pimg_file = i.joinpath(
-                "pcode_" + string + ".img"
-            )
+            pimg_file = i.joinpath("pcode_" + string + ".img")
             with fits.open(str(pimg_file)) as file:
                 # read the partial coding map
                 pimg[:, :, j] += file[0].data
@@ -1687,20 +1678,14 @@ def merge_mosaics(intermediate_mosaic_dir_list, savedir=None):
                     user_met_tbin_end.append(file[0].header["E_TBIN"])
 
             # open the eimg and add it to the array and accumulate the exposure
-            eimg_file = i.joinpath(
-                "expmap_" + string + ".img"
-            )
+            eimg_file = i.joinpath("expmap_" + string + ".img")
             with fits.open(str(eimg_file)) as file:
                 # read the flat exposure map
                 eimg[:, :, j] += file[0].data
 
             # open the vimg and flux files
-            simg_file_name = i.joinpath(
-                "flux_" + string + ".img"
-            )
-            vimg_file_name = i.joinpath(
-                "var_" + string + ".img"
-            )
+            simg_file_name = i.joinpath("flux_" + string + ".img")
+            vimg_file_name = i.joinpath("var_" + string + ".img")
 
             simg_file = fits.open(str(simg_file_name))
             vimg_file = fits.open(str(vimg_file_name))
