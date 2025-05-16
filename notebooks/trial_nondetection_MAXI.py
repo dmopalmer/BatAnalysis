@@ -5,6 +5,7 @@ import sys
 import batanalysis as ba
 import matplotlib.pyplot as plt
 import numpy as np
+import astropy.units as u
 from astropy.time import Time, TimeDelta
 from astropy.io import fits
 from pathlib import Path
@@ -22,14 +23,14 @@ object_batsource = swiftbat.source(
 )
 table_everything = ba.from_heasarc(**queryargs)
 minexposure = 1000  # cm^2 after cos adjust
-exposures = np.array(
+exposures = u.Quantity(
     [object_batsource.exposure(ra=row["RA"],
                                dec=row["DEC"], 
                                roll=row["ROLL_ANGLE"])[0]
         for row in table_everything
     ])
 
-table_exposed = table_everything[exposures > minexposure]
+table_exposed = table_everything[exposures.value > minexposure]
 print(
     f"Finding everything finds {len(table_everything)} observations, of which {len(table_exposed)} have more than {minexposure:0} cm^2 coded"
 )

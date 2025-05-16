@@ -6,6 +6,7 @@ import sys
 import batanalysis as ba
 import matplotlib.pyplot as plt
 import numpy as np
+import astropy.units as u
 from astropy.time import Time, TimeDelta
 from astropy.io import fits
 from pathlib import Path
@@ -32,7 +33,7 @@ table_everything = ba.from_heasarc(name=None, **queryargs)
 minexposure = 1000  # cm^2 after cos adjust
 
 # calculate the exposure with partial coding
-exposures = np.array(
+exposures = u.Quantity(
     [object_batsource.exposure(ra=row["RA"],
                                dec=row["DEC"], 
                                roll=row["ROLL_ANGLE"])[0]
@@ -40,7 +41,7 @@ exposures = np.array(
     ])
 
 # select the observations that have greater than the minimum desired exposure
-table_exposed = table_everything[exposures > minexposure]
+table_exposed = table_everything[exposures.value > minexposure]
 print(
     f"Finding everything finds {len(table_everything)} observations, of which {len(table_exposed)} have more than {minexposure:0} cm^2 coded"
 )
