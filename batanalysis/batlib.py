@@ -150,6 +150,7 @@ def create_custom_catalog(
         very few scenarios)
     :return: Path object pointing to the new catalog file
     """
+    from heasoftpy import ftmerge
 
     # Add check to make sure that input is not tuple
     if (
@@ -236,7 +237,7 @@ def create_custom_catalog(
 
     # need to get the file name off to get the dir this file is located in
     dir = Path(__file__[::-1].partition("/")[-1][::-1])
-    hsp.ftmerge(
+    ftmerge(
         infile="%s %s"
                % (str(dir.joinpath("data").joinpath("survey6b_2.cat")), str(cat)),
         outfile=str(final_cat),
