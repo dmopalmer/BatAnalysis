@@ -22,6 +22,7 @@ from .batobservation import BatObservation
 try:
     import heasoftpy.swift as hsp
     import heasoftpy.utils as hsp_util
+    from heasoftpy import heatools
 except ModuleNotFoundError as err:
     # Error handling
     print(err)
@@ -1821,10 +1822,10 @@ class MosaicBatSurvey(BatSurvey):
         tmp_all_src_file = self.result_dir.joinpath(
             "tmp_sources_tot.cat"
         )  # os.path.join(self.result_dir, 'tmp_sources_tot.cat')
-        hsp.ftmerge(infile=str(resulting_files), outfile=str(tmp_all_src_file))
+        heatools.ftmerge(infile=str(resulting_files), outfile=str(tmp_all_src_file))
 
         # get the coordinates from galactic to RA/DEC
-        hsp.ftcoco(
+        heatools.ftcoco(
             infile=str(tmp_all_src_file),
             outfile=str(all_src_file),
             incoord="G",
@@ -1839,18 +1840,18 @@ class MosaicBatSurvey(BatSurvey):
         # sort based on catalog number and how far away the source is from the edge of the FOV of a facet
         # (want further away to minimize edge effects of interpolation)
         # and then denote the duplicates and get rid of them
-        hsp.ftsort(
+        heatools.ftsort(
             infile=f"{all_src_file}[col *;FACET_DIST = ANGSEP(GLON_OBJ,GLAT_OBJ,CRVAL1,CRVAL2); DUP = F]",
             outfile=str(tmp_all_src_file),
             columns="CATNUM, FACET_DIST",
             clobber="YES",
         )
-        hsp.ftcopy(
+        heatools.ftcopy(
             infile=f"{tmp_all_src_file}[col *; DUP=(CATNUM == CATNUM{{-1}})?T:F;]",
             outfile=str(all_src_file),
             clobber="YES",
         )
-        hsp.ftselect(
+        heatools.ftselect(
             infile=f"{all_src_file}[col CATNUM;NAME;RA_OBJ;DEC_OBJ;BAT_NAME=CATNUM;RATE=CENT_RATE;RATE_ERR=BKG_VAR;VECTSNR=CENT_SNR;CENT_RATE;BKG_VAR;TIME;TIME_STOP;EXPOSURE=PCODEFR;DUP]",
             outfile=str(tmp_all_src_file),
             expression="(DUP==F || isnull(DUP))",
