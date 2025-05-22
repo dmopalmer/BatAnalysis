@@ -250,7 +250,9 @@ _For more details and additional examples please refer to the [Notebooks](https:
 <!-- ROADMAP -->
 ## Roadmap
 
-Next, this package will be modified to include analysis of BAT scaled map data. 
+Next, this package will be modified to:
+- include analysis of BAT scaled map data
+- interface with 3ML for multi-wavelength spectral fitting
 
 See the [open issues](https://github.com/parsotat/BatAnalysis/issues) for a list of proposed features (and known issues).
 
