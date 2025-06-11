@@ -1769,11 +1769,11 @@ The infixes and suffixes:
 def download_swift_trigger_data(triggers=None, triggerrange=None, triggertime=None,
                                 timewindow=300, fetch=True, outdir=None,
                                 clobber=False, quiet=True,
-                                match=None, **query):
+                                match=None, return_table=False, **query):
     """Find data corresponding to trigger on remote server and local disk
 
     Looks up triggers in the 'swifttdrss' table, then downloads the selected triggers
-    to local disk.
+    to local disk. If return_table is True, the queried HEASARC swifttdrss table is also returned. 
     
     Currently, this function covers only data delivered to HEASARC, and not quicklook data.
 
@@ -1796,6 +1796,7 @@ def download_swift_trigger_data(triggers=None, triggerrange=None, triggertime=No
         :param clobber (bool): Overwrite local files.  Defaults to False.
         :param quiet (bool): When downloading, don't print anything out. Defaults to True.
         :param match (str|list[str], optional): Filename patterns to match
+        :param return_table (bool): Return the swifttdrss table queried from the user supplied conditions. Defaults to False
         :param **query (dict(parameter:terms)): Conditions on the swifttdrss table
     Returns:
         dict(int:Swift_Data): Result of each trigger's download.
@@ -1916,7 +1917,10 @@ def download_swift_trigger_data(triggers=None, triggerrange=None, triggertime=No
                 all_res.append(res)
 
             result[trigger] = all_res
-    return result
+    if return_table:
+        return result
+    else:
+        return result, triggertable
 
 
 def met2mjd(met_time):
