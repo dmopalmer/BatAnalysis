@@ -1918,9 +1918,9 @@ def download_swift_trigger_data(triggers=None, triggerrange=None, triggertime=No
 
             result[trigger] = all_res
     if return_table:
-        return result
-    else:
         return result, triggertable
+    else:
+        return result
 
 
 def met2mjd(met_time):
