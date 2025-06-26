@@ -16,7 +16,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
 from healpy.newvisufunc import projview
-from histpy import Histogram, HealpixAxis
+from histpy import Histogram, HealpixAxis, Axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from reproject import reproject_to_healpix
 
@@ -518,10 +518,15 @@ class BatSkyImage(Histogram):
             # use the default spatial axes of the histogram
             # need to determine what this is
             if "SKYX" in self.axes.labels:
-                ax, mesh = BatSkyImage(image_data=self.slice[tmin_idx:tmax_idx, :, :, emin_idx:emax_idx],
-                                       image_type=self.image_type,
-                                       is_mosaic_intermediate=self.is_mosaic_intermediate).project("SKYX",
-                                                                                                   "SKYY").plot()
+                #ax, mesh = BatSkyImage(image_data=self.slice[tmin_idx:tmax_idx, :, :, emin_idx:emax_idx],
+                #                       image_type=self.image_type,
+                #                       is_mosaic_intermediate=self.is_mosaic_intermediate).project("SKYX",
+                #                                                                                   "SKYY").plot()
+                
+                tmp_img = self.slice[tmin_idx:tmax_idx, :, :, emin_idx:emax_idx].project("SKYX","SKYY")
+                
+                ax, mesh = Histogram(tmp_img.axes, contents=tmp_img.contents).plot()
+                
                 ret = (ax, mesh)
             elif "HPX" in self.axes.labels:
                 if "galactic" in coordsys.lower():
@@ -738,10 +743,14 @@ class BatSkyImage(Histogram):
             3) If we have an exposure image or a pcode image, then a projection over energy is irrelevant and we just
                 want to return a slice of the Histogram (if there is more than 1 energy)
             4) If "ENERGY" is a value specified in axes, then we dont need to worry about any of this
+            
         
         :param axis: gets passed into the Histogram project method.
-        :return: Histogram object with the proper projection done and the axes that were requested
+        :return: BatSkyImage object with the proper projection done and the axes that were requested
         """
+        
+        # as of histpy version 2.0.2, the Histogram project() method modifies self so this needs to be accounted for here. We actually return a new BatSkyImage object when we call super().project with this behavior. Everywhere else needs to conform to this behavior within this method (ie the section dealing with snr/stddev images needed to be fixed)
+
 
         # if energy is not specified as a remaining axis OR if there is only 1 energy bin then we dont need to worry
         # about all these nuances. If the image type is not specified, then also go to the normal behavior
@@ -749,10 +758,11 @@ class BatSkyImage(Histogram):
             # check to see if we have images that are not intermediate mosaic images and they are stddev/snr quantities
             if not self.is_mosaic_intermediate and np.any([self.image_type == i for i in ["snr", "stddev"]]):
                 # because the self.project is recursive below, we need to create a new Histogram object so we call that
-                temp_hist = Histogram(edges=self.axes, contents=(self * self).contents.value)
-                ax = [self.axes[i] for i in axis]
-
-                hist = Histogram(edges=ax, contents=np.sqrt(temp_hist.project(*axis)), unit=self.unit)
+                temp_hist = Histogram(edges=self.axes, contents=(self * self).contents)
+                
+                ax = Axes([self.axes[i] for i in axis])
+                
+                hist = self._replace(_axes=ax, _contents = np.sqrt(temp_hist.project(*axis)) )
 
             elif np.any([self.image_type == i for i in ["pcode", "exposure"]]):
                 # this gets executed even if self.is_mosaic_intermediate is True
