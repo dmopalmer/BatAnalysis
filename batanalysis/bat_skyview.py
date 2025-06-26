@@ -272,8 +272,10 @@ class BatSkyView(object):
 
                 # also need to run batcelldetect where we overwrite the SNR and background standard deviation maps
                 # created with batfftimage since batcelldetect constructs these by looking at local count deviations
+                # ensure that the same pcodethresh value is used in what we send to batcelldetect here as well
                 self.detect_sources(input_dict=dict(signifmap=f"{self.snr_img_file}",
                                                     bkgvarmap=f"{self.bkg_stddev_img_file}",
+                                                    pcodethresh=self.skyimg_input_dict["pcodethresh"],
                                                     clobber="yes"))
 
                 # NOTE: these updated, correct snr and bkg_stddev files get read in in self._parse_skyimages below
