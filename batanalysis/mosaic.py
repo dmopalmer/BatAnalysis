@@ -19,6 +19,7 @@ from .batlib import dirtest, met2utc
 try:
     import heasoftpy.swift as hsp
     import heasoftpy.utils as hsp_util
+    import heasoftpy
 except ModuleNotFoundError as err:
     # Error handling
     print(err)
@@ -1508,7 +1509,7 @@ def _mosaic_loop(
                 " BAT survey sequence id",
             )  # was 8b in most recent survey mosaics
             model_hdr["BSURVER"] = (
-                hsp.__version__,
+                heasoftpy.__version__,
                 " BAT survey processing version",
             )  # was 6.16 in  hsp version 0.1.22
             model_hdr["BMOSVER"] = (
